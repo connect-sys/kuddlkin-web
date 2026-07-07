@@ -1,0 +1,224 @@
+/**
+ * Mobile App Styles
+ * Optimized for m.kuddl.co mobile experience
+ */
+
+/* Mobile-specific styles */
+@media (max-width: 768px) {
+  /* Safe area padding for notched devices */
+  .safe-area-pt {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  
+  .safe-area-pb {
+    padding-bottom: env(safe-area-inset-bottom, 20px);
+  }
+  
+  /* Prevent horizontal scroll */
+  body {
+    overflow-x: hidden;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Larger touch targets */
+  button, a, input, select, textarea {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Disable text selection on UI elements */
+  .no-select {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  
+  /* Smooth scrolling */
+  .scroll-smooth {
+    scroll-behavior: smooth;
+  }
+  
+  /* Pull-to-refresh style */
+  .pull-to-refresh {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  /* Card styles for mobile */
+  .mobile-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    margin: 8px 0;
+    padding: 16px;
+  }
+  
+  /* Bottom sheet style */
+  .bottom-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    border-radius: 24px 24px 0 0;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+    max-height: 85vh;
+    overflow-y: auto;
+    z-index: 100;
+  }
+  
+  /* Mobile form inputs */
+  .mobile-input {
+    width: 100%;
+    padding: 16px;
+    font-size: 16px; /* Prevent zoom on iOS */
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #f9fafb;
+  }
+  
+  /* Floating action button */
+  .fab {
+    position: fixed;
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    right: 16px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #14b8a6, #0d9488);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(20, 184, 166, 0.4);
+    z-index: 50;
+  }
+  
+  /* Swipeable card */
+  .swipeable-card {
+    position: relative;
+    transform: translateX(0);
+    transition: transform 0.2s ease;
+  }
+  
+  .swipeable-card.swiped-left {
+    transform: translateX(-80px);
+  }
+  
+  .swipeable-card.swiped-right {
+    transform: translateX(80px);
+  }
+  
+  /* Hide scrollbar but keep functionality */
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Skeleton loading animation */
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      #f0f0f0 25%,
+      #e0e0e0 50%,
+      #f0f0f0 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 8px;
+  }
+  
+  /* Toast notification positioning */
+  .mobile-toast {
+    position: fixed;
+    bottom: calc(80px + env(safe-area-inset-bottom, 20px));
+    left: 16px;
+    right: 16px;
+    z-index: 9999;
+  }
+  
+  /* Page transitions */
+  .page-enter {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  
+  .page-enter-active {
+    opacity: 1;
+    transform: translateX(0);
+    transition: opacity 0.3s, transform 0.3s;
+  }
+  
+  .page-exit {
+    opacity: 1;
+  }
+  
+  .page-exit-active {
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+}
+
+/* iOS specific fixes */
+@supports (-webkit-touch-callout: none) {
+  /* iOS only styles */
+  .ios-fix {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Prevent callout menu on long press */
+  .no-callout {
+    -webkit-touch-callout: none;
+  }
+}
+
+/* Android specific fixes */
+@supports not (-webkit-touch-callout: none) {
+  /* Android only styles - add specific Android fixes here */
+  .android-fix {
+    outline: none;
+  }
+}
+
+/* Status bar height for notch devices */
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+}
+
+/* Standalone PWA mode (when added to home screen) */
+@media (display-mode: standalone) {
+  body {
+    padding-top: var(--sat);
+    padding-bottom: var(--sab);
+  }
+  
+  /* Hide browser UI elements */
+  .browser-only {
+    display: none;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .mobile-card {
+    background: #1f2937;
+  }
+  
+  .mobile-input {
+    background: #374151;
+    border-color: #4b5563;
+    color: white;
+  }
+}

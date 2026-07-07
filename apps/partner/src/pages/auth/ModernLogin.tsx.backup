@@ -1,0 +1,675 @@
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Eye, EyeOff, Mail, Lock, Building2, Users, Shield, Smartphone, Clock } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
+import kuddlLogoFull from '../../assets/images/kuddl-logo-full.svg';
+import { toast } from 'react-hot-toast';
+
+interface LoginForm {
+  email: string;
+  password: string;
+}
+
+const ModernLogin: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { login, sendOTP, verifyOTP, isAuthenticated, user, isLoading } = useAuth();
+  
+  const [loginMethod, setLoginMethod] = useState<'email' | 'otp'>('email');
+  const [formData, setFormData] = useState<LoginForm>({
+    email: '',
+    password: ''
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // OTP Login States
+  const [otpStep, setOtpStep] = useState<'phone' | 'otp'>('phone');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [otp, setOtp] = useState('');
+  const [countdown, setCountdown] = useState(0);
+  const [testMode, setTestMode] = useState(false);
+
+  const getDashboardRoute = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return '/dashboard'; // Admin users go to main dashboard in partner portal
+      case 'partner':
+        return '/dashboard';
+      case 'customer':
+        return '/customer/dashboard';
+      default:
+        return '/dashboard';
+    }
+  };
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    console.log('Auth state changed:', { isAuthenticated, user }); // Debug log
+    if (isAuthenticated && user) {
+      const from = location.state?.from?.pathname || getDashboardRoute(user.role);
+      console.log('Auto-redirecting to:', from, 'for user:', user); // Debug log
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, user, navigate, location.state?.from?.pathname]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    setError('');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsSubmitting(true);
+
+    try {
+      const result = await login(formData.email, formData.password);
+      console.log('Login result:', result); // Debug log
+      if (result?.success) {
+        const dashboardRoute = getDashboardRoute(result.user.role);
+        console.log('Navigating to:', dashboardRoute, 'for role:', result.user.role); // Debug log
+        navigate(dashboardRoute, { replace: true });
+      } else {
+        setError(result?.message || 'Login failed');
+      }
+    } catch (err) {
+      console.error('Login error:', err); // Debug log
+      setError('An error occurred during login');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // OTP Login Handlers
+  const validatePhoneNumber = (phone: string) => {
+    const phoneRegex = /^[6-9]\d{9}$/;
+    return phoneRegex.test(phone);
+  };
+
+  const startCountdown = () => {
+    setCountdown(30);
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const handleSendOTP = async () => {
+    if (!validatePhoneNumber(phoneNumber)) {
+      setError('Please enter a valid 10-digit mobile number');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError('');
+    
+    const result = await sendOTP(phoneNumber);
+    
+    if (result.success) {
+      setOtpStep('otp');
+      setTestMode(result.testMode || false);
+      startCountdown();
+      toast.success(result.testMode ? 'Test mode: Use any 6-digit code' : 'OTP sent successfully!');
+    } else {
+      setError(result.message);
+    }
+    
+    setIsSubmitting(false);
+  };
+
+  const handleVerifyOTP = async () => {
+    if (otp.length !== 6) {
+      setError('Please enter a valid 6-digit OTP');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError('');
+    
+    const result = await verifyOTP(phoneNumber, otp);
+    
+    if (result.success) {
+      toast.success('Welcome back!');
+      const dashboardRoute = getDashboardRoute(result.user.role);
+      navigate(dashboardRoute, { replace: true });
+    } else {
+      setError(result.message);
+      setOtp('');
+    }
+    
+    setIsSubmitting(false);
+  };
+
+  const handleResendOTP = async () => {
+    if (countdown > 0) return;
+    
+    setIsSubmitting(true);
+    const result = await sendOTP(phoneNumber);
+    if (result.success) {
+      startCountdown();
+      toast.success('OTP resent successfully!');
+    } else {
+      setError(result.message);
+    }
+    setIsSubmitting(false);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 animate-fade-in">
+        <div className="w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-2 animate-slide-in-up">
+          {/* Left Panel - Branding */}
+          <div className="hidden lg:flex bg-gray-50 p-12 flex-col justify-center relative overflow-hidden animate-fade-in-down">
+            <div className="flex flex-col justify-between w-full">
+              <div>
+                <div className="mb-8">
+                  <img 
+                    src={kuddlLogoFull} 
+                    alt="Kuddl" 
+                    className="h-12 w-auto"
+                  />
+                </div>
+                
+                <div className="space-y-6">
+                  <h1 className="text-4xl font-bold leading-tight text-gray-900">
+                    Welcome to Your
+                    <br />
+                    <span className="text-[#578f82]">Partner Portal</span>
+                  </h1>
+                  <p className="text-lg text-gray-600 max-w-md">
+                    Manage your services, track bookings, and grow your business with our comprehensive platform.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-6">
+                <div className="flex items-center space-x-4 p-6 bg-white rounded-xl border border-gray-200 shadow-sm">
+                  <div className="w-12 h-12 bg-[#578f82] rounded-lg flex items-center justify-center">
+                    <Users className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Customer Management</h3>
+                    <p className="text-sm text-gray-600">Handle bookings and customer relationships</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-4 p-6 bg-white rounded-xl border border-gray-200 shadow-sm">
+                  <div className="w-12 h-12 bg-[#cf956d] rounded-lg flex items-center justify-center">
+                    <Shield className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Secure Platform</h3>
+                    <p className="text-sm text-gray-600">Enterprise-grade security for your data</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Panel - Login Form */}
+          <div className="flex-1 flex items-center justify-center p-8 bg-white animate-fade-in-up">
+            <div className="w-full max-w-md">
+              <Card className="border-0 shadow-none">
+                <CardHeader className="space-y-1 pb-8">
+                  <div className="flex items-center justify-center mb-6 lg:hidden">
+                    <div className="w-12 h-12 bg-[#578f82] rounded-lg flex items-center justify-center">
+                      <Building2 className="w-7 h-7 text-white" />
+                    </div>
+                  </div>
+                  <CardTitle className="text-3xl font-bold text-center text-gray-900">Sign In</CardTitle>
+                  <CardDescription className="text-center text-gray-600">
+                    Enter your credentials to access your partner account
+                  </CardDescription>
+                </CardHeader>
+                
+                <CardContent>
+                  <form onSubmit={handleSubmit} className="space-y-6">
+                    {error && (
+                      <div className="p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md">
+                        {error}
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      <label htmlFor="email" className="text-sm font-medium">
+                        Email Address
+                      </label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                        <Input
+                          id="email"
+                          name="email"
+                          type="email"
+                          placeholder="admin@kuddl.com"
+                          value={formData.email}
+                          onChange={handleInputChange}
+                          className="pl-10"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label htmlFor="password" className="text-sm font-medium">
+                        Password
+                      </label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                        <Input
+                          id="password"
+                          name="password"
+                          type={showPassword ? 'text' : 'password'}
+                          placeholder="Enter your password"
+                          value={formData.password}
+                          onChange={handleInputChange}
+                          className="pl-10 pr-10"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <Button 
+                      type="submit" 
+                      className="w-full h-11 text-base font-medium"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? (
+                        <div className="flex items-center space-x-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          <span>Signing In...</span>
+                        </div>
+                      ) : (
+                        'Sign In'
+                      )}
+                    </Button>
+
+                    <div className="text-center space-y-2">
+                      <p className="text-sm text-muted-foreground">
+                        Don't have an account?{' '}
+                        <button
+                          onClick={() => navigate('/mobile-verification')}
+                          className="font-medium text-[#578f82] hover:text-[#4a7c70] transition-colors"
+                        >
+                          Join as a Partner
+                        </button>
+                      </p>
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 animate-fade-in">
+      <div className="w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-2 animate-slide-in-up">
+        {/* Left Panel - Branding */}
+        <div className="hidden lg:flex bg-gray-50 p-12 flex-col justify-center relative overflow-hidden animate-fade-in-down">
+          <div className="flex flex-col justify-between w-full">
+            <div>
+              <div className="mb-8">
+                <img 
+                  src={kuddlLogoFull} 
+                  alt="Kuddl" 
+                  className="h-12 w-auto cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => navigate('/')}
+                />
+              </div>
+              
+              <div className="space-y-6">
+                <h1 className="text-4xl font-bold leading-tight text-gray-900">
+                  Welcome to Your
+                  <br />
+                  <span className="text-[#578f82]">Partner Portal</span>
+                </h1>
+                <p className="text-lg text-gray-600 max-w-md">
+                  Manage your services, track bookings, and grow your business with our comprehensive platform.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6">
+              <div className="flex items-center space-x-4 p-6 bg-white rounded-xl border border-gray-200 shadow-sm">
+                <div className="w-12 h-12 bg-[#578f82] rounded-lg flex items-center justify-center">
+                  <Users className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">Customer Management</h3>
+                  <p className="text-sm text-gray-600">Handle bookings and customer relationships</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-4 p-6 bg-white rounded-xl border border-gray-200 shadow-sm">
+                <div className="w-12 h-12 bg-[#cf956d] rounded-lg flex items-center justify-center">
+                  <Shield className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">Secure Platform</h3>
+                  <p className="text-sm text-gray-600">Enterprise-grade security for your data</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Panel - Login Form */}
+        <div className="flex-1 flex items-center justify-center p-8 bg-white animate-fade-in-up">
+          <div className="w-full max-w-md">
+            <Card className="border-0 shadow-none">
+            <CardHeader className="space-y-1 pb-8">
+              <div className="flex lg:hidden items-center justify-center mb-6">
+                <img 
+                  src={kuddlLogoFull} 
+                  alt="Kuddl" 
+                  className="h-10 w-auto cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => navigate('/')}
+                />
+              </div>
+              <CardTitle className="text-3xl font-bold text-center text-gray-900">Sign In</CardTitle>
+              <CardDescription className="text-center text-gray-600">
+                Enter your credentials to access your partner account
+              </CardDescription>
+            </CardHeader>
+              
+              <CardContent>
+                {/* Login Method Toggle */}
+                <div className="flex gap-2 p-1 bg-gray-100 rounded-lg mb-6">
+                  <button
+                    type="button"
+                    onClick={() => setLoginMethod('email')}
+                    className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${
+                      loginMethod === 'email' 
+                        ? 'bg-white text-gray-900 shadow-sm' 
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    <Mail className="w-4 h-4 inline mr-1" />
+                    Email Login
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLoginMethod('otp')}
+                    className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${
+                      loginMethod === 'otp' 
+                        ? 'bg-white text-gray-900 shadow-sm' 
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    <Smartphone className="w-4 h-4 inline mr-1" />
+                    OTP Login
+                  </button>
+                </div>
+
+                {loginMethod === 'email' ? (
+                  <form onSubmit={handleSubmit} className="space-y-6">
+                  {error && (
+                    <div className="p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md">
+                      {error}
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <label htmlFor="email" className="text-sm font-medium">
+                      Email Address
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                      <Input
+                        id="email"
+                        name="email"
+                        type="email"
+                        placeholder="admin@kuddl.co"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="password" className="text-sm font-medium">
+                      Password
+                    </label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                      <Input
+                        id="password"
+                        name="password"
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="••••••••"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        className="pl-10 pr-10"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <Button 
+                    type="submit" 
+                    className="w-full h-11 text-base font-medium bg-[#cf956d] hover:bg-[#b8845f] text-white"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <div className="flex items-center space-x-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <span>Signing In...</span>
+                      </div>
+                    ) : (
+                      'Sign In'
+                    )}
+                  </Button>
+
+                  <div className="text-center space-y-2">
+                    <p className="text-sm text-gray-600">
+                      Don't have an account?{' '}
+                      <button
+                        type="button"
+                        onClick={() => navigate('/mobile-verification')}
+                        className="text-[#578f82] hover:text-[#4a7c70] font-semibold"
+                      >
+                        Join as a Partner
+                      </button>
+                    </p>
+                  </div>
+                </form>
+                ) : (
+                  // OTP Login Form
+                  <div className="space-y-6">
+                    {error && (
+                      <div className="p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md">
+                        {error}
+                      </div>
+                    )}
+
+                    {otpStep === 'phone' ? (
+                      <>
+                        {/* Phone Number Input */}
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Mobile Number</label>
+                          <div className="relative">
+                            <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground text-sm font-medium">
+                              +91
+                            </div>
+                            <Input
+                              type="tel"
+                              placeholder="Enter 10-digit mobile number"
+                              value={phoneNumber}
+                              onChange={(e) => {
+                                const phone = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                setPhoneNumber(phone);
+                                setError('');
+                              }}
+                              className="pl-12 text-lg tracking-wider"
+                              maxLength={10}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Send OTP Button */}
+                        <Button
+                          onClick={handleSendOTP}
+                          disabled={!validatePhoneNumber(phoneNumber) || isSubmitting}
+                          className="w-full h-11 text-base font-medium bg-[#cf956d] hover:bg-[#b8845f] text-white"
+                        >
+                          {isSubmitting ? (
+                            <div className="flex items-center space-x-2">
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                              <span>Sending...</span>
+                            </div>
+                          ) : (
+                            'Send Verification Code'
+                          )}
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        {/* Phone Number Display */}
+                        <div className="text-center p-4 bg-gray-50 rounded-lg">
+                          <p className="text-sm text-gray-600">Code sent to</p>
+                          <p className="font-semibold text-gray-900">+91 {phoneNumber}</p>
+                          <button
+                            onClick={() => {
+                              setOtpStep('phone');
+                              setOtp('');
+                              setError('');
+                            }}
+                            className="text-[#578f82] hover:text-[#4a7c70] text-sm font-medium mt-1"
+                          >
+                            Change number
+                          </button>
+                        </div>
+
+                        {/* Test Mode Notice */}
+                        {testMode && (
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <div className="flex items-center">
+                              <Shield className="w-5 h-5 text-blue-600 mr-2" />
+                              <div>
+                                <p className="text-blue-800 font-medium text-sm">Test Mode Active</p>
+                                <p className="text-blue-600 text-xs">Use any 6-digit code for testing</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* OTP Input */}
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Verification Code</label>
+                          <Input
+                            type="text"
+                            placeholder="Enter 6-digit code"
+                            value={otp}
+                            onChange={(e) => {
+                              const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                              setOtp(value);
+                              setError('');
+                            }}
+                            className="text-center text-2xl tracking-[0.5em] font-mono"
+                            maxLength={6}
+                          />
+                        </div>
+
+                        {/* Verify Button */}
+                        <Button
+                          onClick={handleVerifyOTP}
+                          disabled={otp.length !== 6 || isSubmitting}
+                          className="w-full h-11 text-base font-medium bg-[#cf956d] hover:bg-[#b8845f] text-white"
+                        >
+                          {isSubmitting ? (
+                            <div className="flex items-center space-x-2">
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                              <span>Verifying...</span>
+                            </div>
+                          ) : (
+                            'Verify & Continue'
+                          )}
+                        </Button>
+
+                        {/* Resend OTP */}
+                        <div className="text-center">
+                          {countdown > 0 ? (
+                            <p className="text-gray-600 text-sm flex items-center justify-center">
+                              <Clock className="w-4 h-4 mr-1" />
+                              Resend code in {countdown}s
+                            </p>
+                          ) : (
+                            <button
+                              onClick={handleResendOTP}
+                              disabled={isSubmitting}
+                              className="text-[#578f82] hover:text-[#4a7c70] font-medium text-sm"
+                            >
+                              Resend verification code
+                            </button>
+                          )}
+                        </div>
+                      </>
+                    )}
+
+                    {/* Security Notice */}
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                      <div className="flex items-start">
+                        <Shield className="w-5 h-5 text-green-600 mr-2 mt-0.5" />
+                        <div>
+                          <p className="text-green-800 font-medium text-sm">Secure & Private</p>
+                          <p className="text-green-600 text-xs">
+                            Your phone number is encrypted and never shared with third parties
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-center space-y-2">
+                      <p className="text-sm text-gray-600">
+                        Don't have an account?{' '}
+                        <button
+                          type="button"
+                          onClick={() => navigate('/mobile-verification')}
+                          className="text-[#578f82] hover:text-[#4a7c70] font-semibold"
+                        >
+                          Join as a Partner
+                        </button>
+                      </p>
+                    </div>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+      {/* Firebase reCAPTCHA container - invisible */}
+      <div id="recaptcha-container"></div>
+    </div>
+  );
+};
+
+export default ModernLogin;

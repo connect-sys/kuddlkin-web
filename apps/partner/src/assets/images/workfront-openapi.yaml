@@ -1,0 +1,1322 @@
+openapi: 3.0.3
+info:
+  title: Adobe Workfront REST API
+  description: |
+    The Adobe Workfront REST API (also called the Workflow/attask API) provides
+    programmatic access to Projects, Tasks, Issues, Users, Documents, and other
+    Workfront resources. All requests are made to your instance domain at
+    `https://{domain}.workfront.com/attask/api/{version}/`.
+
+    ## Authentication
+    Authenticate via session ID (username/password login) or an API key.
+
+    ## Base URI Pattern
+    ```
+    https://{domain}.workfront.com/attask/api/v{version}/{object}
+    ```
+
+    ## Supported HTTP Methods
+    | Method | Operation |
+    |--------|-----------|
+    | GET    | Retrieve one or many objects |
+    | POST   | Create a new object |
+    | PUT    | Update an existing object |
+    | DELETE | Remove an object |
+
+  version: "21.0"
+  contact:
+    name: Adobe Workfront Developer Support
+    url: https://developer.adobe.com/workfront-apis/
+  license:
+    name: Adobe Developer Terms
+    url: https://developer.adobe.com/terms/
+
+servers:
+  - url: https://{domain}.workfront.com/attask/api/v21.0
+    description: Production instance
+    variables:
+      domain:
+        default: yourcompany
+        description: Your Workfront subdomain
+  - url: https://{domain}.preview.workfront.com/attask/api/v21.0
+    description: Sandbox / Preview instance
+    variables:
+      domain:
+        default: yourcompany
+        description: Your Workfront sandbox subdomain
+
+tags:
+  - name: Authentication
+    description: Login, logout, and API key management
+  - name: Projects
+    description: Manage Workfront Projects (PROJ)
+  - name: Tasks
+    description: Manage Tasks within Projects (TASK)
+  - name: Issues
+    description: Manage Issues / Requests (OPTASK)
+  - name: Users
+    description: Manage Workfront Users (USER)
+  - name: Documents
+    description: Manage Documents and attachments (DOCU)
+  - name: Portfolios
+    description: Manage Portfolios (PORT)
+  - name: Programs
+    description: Manage Programs within Portfolios (PRGM)
+  - name: Reports
+    description: Run reports and retrieve metadata
+
+# ---------------------------------------------------------------------------
+# SECURITY SCHEMES
+# ---------------------------------------------------------------------------
+components:
+  securitySchemes:
+    SessionID:
+      type: apiKey
+      in: query
+      name: sessionID
+      description: Session token obtained from the /login endpoint
+    ApiKey:
+      type: apiKey
+      in: query
+      name: apiKey
+      description: Personal API key configured in the user profile
+
+  # -------------------------------------------------------------------------
+  # REUSABLE PARAMETERS
+  # -------------------------------------------------------------------------
+  parameters:
+    SessionIDQuery:
+      name: sessionID
+      in: query
+      description: Active session identifier
+      schema:
+        type: string
+    LimitParam:
+      name: "$$LIMIT"
+      in: query
+      description: Maximum number of records to return (default 100, max 2000)
+      schema:
+        type: integer
+        default: 100
+        maximum: 2000
+    OffsetParam:
+      name: "$$FIRST"
+      in: query
+      description: Zero-based offset for pagination
+      schema:
+        type: integer
+        default: 0
+    FieldsParam:
+      name: fields
+      in: query
+      description: >
+        Comma-separated list of fields to return. Use `*` for all fields.
+        Prefix a field with `!` to exclude it.
+      schema:
+        type: string
+        example: "ID,name,status,percentComplete,plannedStartDate"
+    MethodOverride:
+      name: method
+      in: query
+      description: HTTP method override for environments that only support GET/POST
+      schema:
+        type: string
+        enum: [GET, POST, PUT, DELETE]
+
+  # -------------------------------------------------------------------------
+  # REUSABLE SCHEMAS
+  # -------------------------------------------------------------------------
+  schemas:
+
+    # --- Generic ---
+    WorkfrontID:
+      type: string
+      pattern: "^[0-9a-f]{32}$"
+      example: "5cf0415a009ec7f654918e8ae696aab9"
+      description: 32-character hexadecimal Workfront object ID
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            message:
+              type: string
+            class:
+              type: string
+            msgKey:
+              type: string
+
+    # --- Auth ---
+    LoginResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            sessionID:
+              type: string
+              example: "abc123sessiontoken"
+            userID:
+              $ref: '#/components/schemas/WorkfrontID'
+
+    # --- Project ---
+    Project:
+      type: object
+      properties:
+        ID:
+          $ref: '#/components/schemas/WorkfrontID'
+        name:
+          type: string
+          example: "Website Redesign Q3"
+        objCode:
+          type: string
+          example: "PROJ"
+        status:
+          type: string
+          enum: [CUR, PLN, CPL, DED, REQ, APR]
+          description: |
+            CUR=Current, PLN=Planning, CPL=Complete, DED=Dead, REQ=Requested, APR=Approved
+        percentComplete:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          example: 45.0
+        plannedStartDate:
+          type: string
+          format: date-time
+          example: "2024-01-15T08:00:00:000-0600"
+        plannedCompletionDate:
+          type: string
+          format: date-time
+          example: "2024-06-30T17:00:00:000-0500"
+        actualStartDate:
+          type: string
+          format: date-time
+          nullable: true
+        actualCompletionDate:
+          type: string
+          format: date-time
+          nullable: true
+        description:
+          type: string
+        ownerID:
+          $ref: '#/components/schemas/WorkfrontID'
+        portfolioID:
+          $ref: '#/components/schemas/WorkfrontID'
+        programID:
+          $ref: '#/components/schemas/WorkfrontID'
+        priority:
+          type: integer
+          description: "0=None, 1=Low, 2=Normal, 3=High, 4=Urgent"
+          enum: [0, 1, 2, 3, 4]
+        condition:
+          type: string
+          enum: [GT, OK, BC]
+          description: "GT=On Target, OK=At Risk, BC=In Trouble"
+        enteredByID:
+          $ref: '#/components/schemas/WorkfrontID'
+        entryDate:
+          type: string
+          format: date-time
+        lastUpdateDate:
+          type: string
+          format: date-time
+
+    ProjectCreate:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        plannedStartDate:
+          type: string
+          format: date-time
+        plannedCompletionDate:
+          type: string
+          format: date-time
+        ownerID:
+          $ref: '#/components/schemas/WorkfrontID'
+        portfolioID:
+          $ref: '#/components/schemas/WorkfrontID'
+        programID:
+          $ref: '#/components/schemas/WorkfrontID'
+        priority:
+          type: integer
+          enum: [0, 1, 2, 3, 4]
+        status:
+          type: string
+          enum: [CUR, PLN, CPL, DED, REQ, APR]
+
+    # --- Task ---
+    Task:
+      type: object
+      properties:
+        ID:
+          $ref: '#/components/schemas/WorkfrontID'
+        name:
+          type: string
+          example: "Design Mockups"
+        objCode:
+          type: string
+          example: "TASK"
+        projectID:
+          $ref: '#/components/schemas/WorkfrontID'
+        status:
+          type: string
+          enum: [NEW, INP, CPL]
+          description: "NEW=New, INP=In Progress, CPL=Complete"
+        percentComplete:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+        assignedToID:
+          $ref: '#/components/schemas/WorkfrontID'
+        plannedStartDate:
+          type: string
+          format: date-time
+        plannedCompletionDate:
+          type: string
+          format: date-time
+        actualStartDate:
+          type: string
+          format: date-time
+          nullable: true
+        actualCompletionDate:
+          type: string
+          format: date-time
+          nullable: true
+        duration:
+          type: integer
+          description: Duration in minutes
+        durationUnit:
+          type: string
+          enum: [M, H, D, W]
+          description: "M=Minutes, H=Hours, D=Days, W=Weeks"
+        priority:
+          type: integer
+          enum: [0, 1, 2, 3, 4]
+        parentID:
+          $ref: '#/components/schemas/WorkfrontID'
+          nullable: true
+        taskNumber:
+          type: integer
+
+    TaskCreate:
+      type: object
+      required:
+        - name
+        - projectID
+      properties:
+        name:
+          type: string
+        projectID:
+          $ref: '#/components/schemas/WorkfrontID'
+        parentID:
+          $ref: '#/components/schemas/WorkfrontID'
+        assignedToID:
+          $ref: '#/components/schemas/WorkfrontID'
+        plannedStartDate:
+          type: string
+          format: date-time
+        plannedCompletionDate:
+          type: string
+          format: date-time
+        duration:
+          type: integer
+        durationUnit:
+          type: string
+          enum: [M, H, D, W]
+        priority:
+          type: integer
+          enum: [0, 1, 2, 3, 4]
+
+    # --- Issue (OPTASK) ---
+    Issue:
+      type: object
+      properties:
+        ID:
+          $ref: '#/components/schemas/WorkfrontID'
+        name:
+          type: string
+        objCode:
+          type: string
+          example: "OPTASK"
+        status:
+          type: string
+          enum: [NEW, INP, CPL, AWF, PCA, AVP, AVI, ACT, CLS, HDN]
+        priority:
+          type: integer
+          enum: [0, 1, 2, 3, 4]
+        projectID:
+          $ref: '#/components/schemas/WorkfrontID'
+          nullable: true
+        assignedToID:
+          $ref: '#/components/schemas/WorkfrontID'
+          nullable: true
+        description:
+          type: string
+        entryDate:
+          type: string
+          format: date-time
+        plannedCompletionDate:
+          type: string
+          format: date-time
+          nullable: true
+
+    # --- User ---
+    User:
+      type: object
+      properties:
+        ID:
+          $ref: '#/components/schemas/WorkfrontID'
+        name:
+          type: string
+          example: "Jane Smith"
+        username:
+          type: string
+          example: "jsmith@company.com"
+        emailAddr:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        title:
+          type: string
+        phoneNumber:
+          type: string
+        isActive:
+          type: boolean
+        accessLevel:
+          type: object
+        homeGroupID:
+          $ref: '#/components/schemas/WorkfrontID'
+
+    # --- Document ---
+    Document:
+      type: object
+      properties:
+        ID:
+          $ref: '#/components/schemas/WorkfrontID'
+        name:
+          type: string
+        objCode:
+          type: string
+          example: "DOCU"
+        description:
+          type: string
+        docObjCode:
+          type: string
+          description: Object type this document is attached to (PROJ, TASK, OPTASK)
+        objID:
+          $ref: '#/components/schemas/WorkfrontID'
+        fileExtension:
+          type: string
+          example: "pdf"
+        fileSize:
+          type: integer
+          description: File size in bytes
+        downloadURL:
+          type: string
+          format: uri
+        entryDate:
+          type: string
+          format: date-time
+        lastUpdateDate:
+          type: string
+          format: date-time
+        currentVersionID:
+          $ref: '#/components/schemas/WorkfrontID'
+
+    # --- Portfolio ---
+    Portfolio:
+      type: object
+      properties:
+        ID:
+          $ref: '#/components/schemas/WorkfrontID'
+        name:
+          type: string
+        description:
+          type: string
+        isActive:
+          type: boolean
+        ownerID:
+          $ref: '#/components/schemas/WorkfrontID'
+        budget:
+          type: number
+        netValue:
+          type: number
+        roi:
+          type: number
+          description: Return on Investment (%)
+
+    # --- Generic list wrapper ---
+    ListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+
+    SingleResponse:
+      type: object
+      properties:
+        data:
+          type: object
+
+# ---------------------------------------------------------------------------
+# PATHS
+# ---------------------------------------------------------------------------
+paths:
+
+  # ===== AUTHENTICATION =====
+  /login:
+    post:
+      tags: [Authentication]
+      summary: Login and obtain a session ID
+      description: |
+        Authenticates with username and password and returns a `sessionID`
+        that must be passed in all subsequent requests.
+      parameters:
+        - name: username
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: password
+          in: query
+          required: true
+          schema:
+            type: string
+            format: password
+        - $ref: '#/components/parameters/MethodOverride'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /logout:
+    get:
+      tags: [Authentication]
+      summary: End the current session
+      parameters:
+        - $ref: '#/components/parameters/SessionIDQuery'
+      responses:
+        '200':
+          description: Successfully logged out
+
+  /user/getApiKey:
+    get:
+      tags: [Authentication]
+      summary: Retrieve the user's API key
+      parameters:
+        - $ref: '#/components/parameters/SessionIDQuery'
+        - name: username
+          in: query
+          schema:
+            type: string
+        - name: password
+          in: query
+          schema:
+            type: string
+            format: password
+      responses:
+        '200':
+          description: API key returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: string
+                    description: The API key string
+
+  # ===== PROJECTS =====
+  /project:
+    get:
+      tags: [Projects]
+      summary: Search / list projects
+      security:
+        - SessionID: []
+        - ApiKey: []
+      parameters:
+        - $ref: '#/components/parameters/SessionIDQuery'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/OffsetParam'
+        - $ref: '#/components/parameters/FieldsParam'
+        - name: status
+          in: query
+          description: Filter by project status
+          schema:
+            type: string
+            enum: [CUR, PLN, CPL, DED, REQ, APR]
+        - name: name
+          in: query
+          description: Filter by project name (supports wildcards with `*`)
+          schema:
+            type: string
+        - name: ownerID
+          in: query
+          description: Filter by project owner User ID
+          schema:
+            $ref: '#/components/schemas/WorkfrontID'
+      responses:
+        '200':
+          description: List of matching projects
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ListResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Project'
+    post:
+      tags: [Projects]
+      summary: Create a new project
+      security:
+        - SessionID: []
+        - ApiKey: []
+      parameters:
+        - $ref: '#/components/parameters/SessionIDQuery'
+        - $ref: '#/components/parameters/FieldsParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectCreate'
+      responses:
+        '200':
+          description: Project created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SingleResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Project'
+
+  /project/{ID}:
+    get:
+      tags: [Projects]
+      summary: Retrieve a single project by ID
+      security:
+        - SessionID: []
+        - ApiKey: []
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/WorkfrontID'
+        - $ref: '#/components/parameters/SessionIDQuery'
+        - $ref: '#/components/parameters/FieldsParam'
+      responses:
+        '200':
+          description: Project found
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SingleResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Project'
+        '404':
+          description: Project not found
+    put:
+      tags: [Projects]
+      summary: Update an existing project
+      security:
+        - SessionID: []
+        - ApiKey: []
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/WorkfrontID'
+        - $ref: '#/components/parameters/SessionIDQuery'
+        - $ref: '#/components/parameters/FieldsParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectCreate'
+      responses:
+        '200':
+          description: Project updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SingleResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Project'
+    delete:
+      tags: [Projects]
+      summary: Delete a project
+      security:
+        - SessionID: []
+        - ApiKey: []
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/WorkfrontID'
+        - $ref: '#/components/parameters/SessionIDQuery'
+        - name: force
+          in: query
+          description: Force delete even if project has tasks/issues
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Project deleted
+        '403':
+          description: Insufficient permissions
+
+  /project/{ID}/tasks:
+    get:
+      tags: [Projects]
+      summary: Get all tasks for a project
+      security:
+        - SessionID: []
+        - ApiKey: []
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/WorkfrontID'
+        - $ref: '#/components/parameters/SessionIDQuery'
+        - $ref: '#/components/parameters/FieldsParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ListResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Task'
+
+  # ===== TASKS =====
+  /task:
+    get:
+      tags: [Tasks]
+      summary: Search / list tasks
+      security:
+        - SessionID: []
+        - ApiKey: []
+      parameters:
+        - $ref: '#/components/parameters/SessionIDQuery'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/OffsetParam'
+        - $ref: '#/components/parameters/FieldsParam'
+        - name: projectID
+          in: query
+          schema:
+            $ref: '#/components/schemas/WorkfrontID'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [NEW, INP, CPL]
+        - name: assignedToID
+          in: query
+          schema:
+            $ref: '#/components/schemas/WorkfrontID'
+      responses:
+        '200':
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ListResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Task'
+    post:
+      tags: [Tasks]
+      summary: Create a new task
+      security:
+        - SessionID: []
+        - ApiKey: []
+      parameters:
+        - $ref: '#/components/parameters/SessionIDQuery'
+        - $ref: '#/components/parameters/FieldsParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreate'
+      responses:
+        '200':
+          description: Task created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SingleResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Task'
+
+  /task/{ID}:
+    get:
+      tags: [Tasks]
+      summary: Get a task by ID
+      security:
+        - SessionID: []
+        - ApiKey: []
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/WorkfrontID'
+        - $ref: '#/components/parameters/SessionIDQuery'
+        - $ref: '#/components/parameters/FieldsParam'
+      responses:
+        '200':
+          description: Task found
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SingleResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Task'
+    put:
+      tags: [Tasks]
+      summary: Update a task
+      security:
+        - SessionID: []
+        - ApiKey: []
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/WorkfrontID'
+        - $ref: '#/components/parameters/SessionIDQuery'
+        - $ref: '#/components/parameters/FieldsParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreate'
+      responses:
+        '200':
+          description: Task updated
+    delete:
+      tags: [Tasks]
+      summary: Delete a task
+      security:
+        - SessionID: []
+        - ApiKey: []
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/WorkfrontID'
+        - $ref: '#/components/parameters/SessionIDQuery'
+      responses:
+        '200':
+          description: Task deleted
+
+  # ===== ISSUES =====
+  /optask:
+    get:
+      tags: [Issues]
+      summary: Search / list issues (requests)
+      security:
+        - SessionID: []
+        - ApiKey: []
+      parameters:
+        - $ref: '#/components/parameters/SessionIDQuery'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/OffsetParam'
+        - $ref: '#/components/parameters/FieldsParam'
+        - name: projectID
+          in: query
+          schema:
+            $ref: '#/components/schemas/WorkfrontID'
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of issues
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ListResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Issue'
+    post:
+      tags: [Issues]
+      summary: Create a new issue
+      security:
+        - SessionID: []
+        - ApiKey: []
+      parameters:
+        - $ref: '#/components/parameters/SessionIDQuery'
+        - $ref: '#/components/parameters/FieldsParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                projectID:
+                  $ref: '#/components/schemas/WorkfrontID'
+                description:
+                  type: string
+                priority:
+                  type: integer
+                  enum: [0, 1, 2, 3, 4]
+                assignedToID:
+                  $ref: '#/components/schemas/WorkfrontID'
+      responses:
+        '200':
+          description: Issue created
+
+  /optask/{ID}:
+    get:
+      tags: [Issues]
+      summary: Get an issue by ID
+      security:
+        - SessionID: []
+        - ApiKey: []
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/WorkfrontID'
+        - $ref: '#/components/parameters/SessionIDQuery'
+        - $ref: '#/components/parameters/FieldsParam'
+      responses:
+        '200':
+          description: Issue found
+    put:
+      tags: [Issues]
+      summary: Update an issue
+      security:
+        - SessionID: []
+        - ApiKey: []
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/WorkfrontID'
+        - $ref: '#/components/parameters/SessionIDQuery'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Issue updated
+    delete:
+      tags: [Issues]
+      summary: Delete an issue
+      security:
+        - SessionID: []
+        - ApiKey: []
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/WorkfrontID'
+        - $ref: '#/components/parameters/SessionIDQuery'
+      responses:
+        '200':
+          description: Issue deleted
+
+  # ===== USERS =====
+  /user:
+    get:
+      tags: [Users]
+      summary: Search / list users
+      security:
+        - SessionID: []
+        - ApiKey: []
+      parameters:
+        - $ref: '#/components/parameters/SessionIDQuery'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/OffsetParam'
+        - $ref: '#/components/parameters/FieldsParam'
+        - name: isActive
+          in: query
+          schema:
+            type: boolean
+        - name: emailAddr
+          in: query
+          schema:
+            type: string
+        - name: homeGroupID
+          in: query
+          schema:
+            $ref: '#/components/schemas/WorkfrontID'
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ListResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/User'
+
+  /user/{ID}:
+    get:
+      tags: [Users]
+      summary: Get a user by ID
+      security:
+        - SessionID: []
+        - ApiKey: []
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/WorkfrontID'
+        - $ref: '#/components/parameters/SessionIDQuery'
+        - $ref: '#/components/parameters/FieldsParam'
+      responses:
+        '200':
+          description: User found
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SingleResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/User'
+    put:
+      tags: [Users]
+      summary: Update a user
+      security:
+        - SessionID: []
+        - ApiKey: []
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/WorkfrontID'
+        - $ref: '#/components/parameters/SessionIDQuery'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '200':
+          description: User updated
+
+  # ===== DOCUMENTS =====
+  /document:
+    get:
+      tags: [Documents]
+      summary: Search / list documents
+      security:
+        - SessionID: []
+        - ApiKey: []
+      parameters:
+        - $ref: '#/components/parameters/SessionIDQuery'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/OffsetParam'
+        - $ref: '#/components/parameters/FieldsParam'
+        - name: objID
+          in: query
+          description: ID of the parent object (project, task, issue)
+          schema:
+            $ref: '#/components/schemas/WorkfrontID'
+        - name: docObjCode
+          in: query
+          description: Parent object type code
+          schema:
+            type: string
+            enum: [PROJ, TASK, OPTASK, USER]
+      responses:
+        '200':
+          description: List of documents
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ListResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Document'
+
+  /document/{ID}:
+    get:
+      tags: [Documents]
+      summary: Get a document by ID
+      security:
+        - SessionID: []
+        - ApiKey: []
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/WorkfrontID'
+        - $ref: '#/components/parameters/SessionIDQuery'
+        - $ref: '#/components/parameters/FieldsParam'
+      responses:
+        '200':
+          description: Document metadata returned
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SingleResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Document'
+    delete:
+      tags: [Documents]
+      summary: Delete a document
+      security:
+        - SessionID: []
+        - ApiKey: []
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/WorkfrontID'
+        - $ref: '#/components/parameters/SessionIDQuery'
+      responses:
+        '200':
+          description: Document deleted
+
+  # ===== PORTFOLIOS =====
+  /portfolio:
+    get:
+      tags: [Portfolios]
+      summary: List all portfolios
+      security:
+        - SessionID: []
+        - ApiKey: []
+      parameters:
+        - $ref: '#/components/parameters/SessionIDQuery'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/OffsetParam'
+        - $ref: '#/components/parameters/FieldsParam'
+      responses:
+        '200':
+          description: List of portfolios
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ListResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Portfolio'
+    post:
+      tags: [Portfolios]
+      summary: Create a portfolio
+      security:
+        - SessionID: []
+        - ApiKey: []
+      parameters:
+        - $ref: '#/components/parameters/SessionIDQuery'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Portfolio'
+      responses:
+        '200':
+          description: Portfolio created
+
+  /portfolio/{ID}:
+    get:
+      tags: [Portfolios]
+      summary: Get a portfolio by ID
+      security:
+        - SessionID: []
+        - ApiKey: []
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/WorkfrontID'
+        - $ref: '#/components/parameters/SessionIDQuery'
+        - $ref: '#/components/parameters/FieldsParam'
+      responses:
+        '200':
+          description: Portfolio found
+    put:
+      tags: [Portfolios]
+      summary: Update a portfolio
+      security:
+        - SessionID: []
+        - ApiKey: []
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/WorkfrontID'
+        - $ref: '#/components/parameters/SessionIDQuery'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Portfolio'
+      responses:
+        '200':
+          description: Portfolio updated
+    delete:
+      tags: [Portfolios]
+      summary: Delete a portfolio
+      security:
+        - SessionID: []
+        - ApiKey: []
+      parameters:
+        - name: ID
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/WorkfrontID'
+        - $ref: '#/components/parameters/SessionIDQuery'
+      responses:
+        '200':
+          description: Portfolio deleted
+
+  # ===== METADATA / REPORTS =====
+  /{objectCode}/metadata:
+    get:
+      tags: [Reports]
+      summary: Get field metadata for an object type
+      description: |
+        Returns all available fields, references, and collections for the
+        specified object type code (e.g., PROJ, TASK, OPTASK, USER, DOCU).
+      security:
+        - SessionID: []
+        - ApiKey: []
+      parameters:
+        - name: objectCode
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "project"
+        - $ref: '#/components/parameters/SessionIDQuery'
+      responses:
+        '200':
+          description: Metadata for the object type
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      label:
+                        type: string
+                      objCode:
+                        type: string
+                      fields:
+                        type: object
+                        additionalProperties:
+                          type: object
+                      references:
+                        type: object
+                        additionalProperties:
+                          type: object
+                      collections:
+                        type: object
+                        additionalProperties:
+                          type: object
+                      operations:
+                        type: array
+                        items:
+                          type: string

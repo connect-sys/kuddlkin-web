@@ -1,0 +1,627 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Adobe Workfront REST API (Swagger 2.0)",
+    "description": "RESTful API for managing Workfront Projects, Tasks, Issues, Users, Documents, and Portfolios via the /attask endpoints. Authenticate with sessionID or apiKey query parameter.",
+    "version": "21.0",
+    "contact": {
+      "name": "Adobe Workfront Developer Support",
+      "url": "https://developer.adobe.com/workfront-apis/"
+    }
+  },
+  "host": "{domain}.workfront.com",
+  "basePath": "/attask/api/v21.0",
+  "schemes": ["https"],
+  "consumes": ["application/json"],
+  "produces": ["application/json"],
+
+  "securityDefinitions": {
+    "SessionID": {
+      "type": "apiKey",
+      "in": "query",
+      "name": "sessionID",
+      "description": "Session token from /login"
+    },
+    "ApiKey": {
+      "type": "apiKey",
+      "in": "query",
+      "name": "apiKey",
+      "description": "Personal API key from user profile"
+    }
+  },
+
+  "tags": [
+    { "name": "Authentication", "description": "Login, logout, and API key management" },
+    { "name": "Projects",       "description": "PROJ — Manage Workfront Projects" },
+    { "name": "Tasks",          "description": "TASK — Manage Tasks within Projects" },
+    { "name": "Issues",         "description": "OPTASK — Manage Issues / Requests" },
+    { "name": "Users",          "description": "USER — Manage Workfront Users" },
+    { "name": "Documents",      "description": "DOCU — Manage Documents and attachments" },
+    { "name": "Portfolios",     "description": "PORT — Manage Portfolios" },
+    { "name": "Metadata",       "description": "Object field schema and metadata" }
+  ],
+
+  "parameters": {
+    "SessionIDQuery": {
+      "name": "sessionID", "in": "query", "type": "string",
+      "description": "Active session identifier"
+    },
+    "LimitParam": {
+      "name": "$$LIMIT", "in": "query", "type": "integer",
+      "default": 100, "maximum": 2000,
+      "description": "Maximum records returned"
+    },
+    "OffsetParam": {
+      "name": "$$FIRST", "in": "query", "type": "integer",
+      "default": 0, "description": "Zero-based pagination offset"
+    },
+    "FieldsParam": {
+      "name": "fields", "in": "query", "type": "string",
+      "description": "Comma-separated field list. Use * for all, prefix ! to exclude."
+    },
+    "PathID": {
+      "name": "ID", "in": "path", "required": true, "type": "string",
+      "description": "32-character hexadecimal Workfront object ID"
+    }
+  },
+
+  "definitions": {
+
+    "WorkfrontID": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{32}$",
+      "example": "5cf0415a009ec7f654918e8ae696aab9"
+    },
+
+    "ErrorResponse": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "object",
+          "properties": {
+            "message": { "type": "string" },
+            "class":   { "type": "string" },
+            "msgKey":  { "type": "string" }
+          }
+        }
+      }
+    },
+
+    "LoginResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "object",
+          "properties": {
+            "sessionID": { "type": "string" },
+            "userID":    { "$ref": "#/definitions/WorkfrontID" }
+          }
+        }
+      }
+    },
+
+    "Project": {
+      "type": "object",
+      "properties": {
+        "ID":                     { "$ref": "#/definitions/WorkfrontID" },
+        "name":                   { "type": "string", "example": "Website Redesign Q3" },
+        "objCode":                { "type": "string", "example": "PROJ" },
+        "status":                 { "type": "string", "enum": ["CUR","PLN","CPL","DED","REQ","APR"] },
+        "percentComplete":        { "type": "number", "format": "float", "minimum": 0, "maximum": 100 },
+        "plannedStartDate":       { "type": "string", "format": "date-time" },
+        "plannedCompletionDate":  { "type": "string", "format": "date-time" },
+        "actualStartDate":        { "type": "string", "format": "date-time" },
+        "actualCompletionDate":   { "type": "string", "format": "date-time" },
+        "description":            { "type": "string" },
+        "ownerID":                { "$ref": "#/definitions/WorkfrontID" },
+        "portfolioID":            { "$ref": "#/definitions/WorkfrontID" },
+        "programID":              { "$ref": "#/definitions/WorkfrontID" },
+        "priority":               { "type": "integer", "enum": [0,1,2,3,4] },
+        "condition":              { "type": "string", "enum": ["GT","OK","BC"] },
+        "entryDate":              { "type": "string", "format": "date-time" },
+        "lastUpdateDate":         { "type": "string", "format": "date-time" }
+      }
+    },
+
+    "ProjectCreate": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name":                  { "type": "string" },
+        "description":           { "type": "string" },
+        "plannedStartDate":      { "type": "string", "format": "date-time" },
+        "plannedCompletionDate": { "type": "string", "format": "date-time" },
+        "ownerID":               { "$ref": "#/definitions/WorkfrontID" },
+        "portfolioID":           { "$ref": "#/definitions/WorkfrontID" },
+        "programID":             { "$ref": "#/definitions/WorkfrontID" },
+        "priority":              { "type": "integer", "enum": [0,1,2,3,4] },
+        "status":                { "type": "string", "enum": ["CUR","PLN","CPL","DED","REQ","APR"] }
+      }
+    },
+
+    "Task": {
+      "type": "object",
+      "properties": {
+        "ID":                    { "$ref": "#/definitions/WorkfrontID" },
+        "name":                  { "type": "string" },
+        "objCode":               { "type": "string", "example": "TASK" },
+        "projectID":             { "$ref": "#/definitions/WorkfrontID" },
+        "status":                { "type": "string", "enum": ["NEW","INP","CPL"] },
+        "percentComplete":       { "type": "number", "format": "float" },
+        "assignedToID":          { "$ref": "#/definitions/WorkfrontID" },
+        "plannedStartDate":      { "type": "string", "format": "date-time" },
+        "plannedCompletionDate": { "type": "string", "format": "date-time" },
+        "duration":              { "type": "integer" },
+        "durationUnit":          { "type": "string", "enum": ["M","H","D","W"] },
+        "priority":              { "type": "integer", "enum": [0,1,2,3,4] },
+        "parentID":              { "$ref": "#/definitions/WorkfrontID" },
+        "taskNumber":            { "type": "integer" }
+      }
+    },
+
+    "TaskCreate": {
+      "type": "object",
+      "required": ["name","projectID"],
+      "properties": {
+        "name":                  { "type": "string" },
+        "projectID":             { "$ref": "#/definitions/WorkfrontID" },
+        "parentID":              { "$ref": "#/definitions/WorkfrontID" },
+        "assignedToID":          { "$ref": "#/definitions/WorkfrontID" },
+        "plannedStartDate":      { "type": "string", "format": "date-time" },
+        "plannedCompletionDate": { "type": "string", "format": "date-time" },
+        "duration":              { "type": "integer" },
+        "durationUnit":          { "type": "string", "enum": ["M","H","D","W"] },
+        "priority":              { "type": "integer", "enum": [0,1,2,3,4] }
+      }
+    },
+
+    "Issue": {
+      "type": "object",
+      "properties": {
+        "ID":                    { "$ref": "#/definitions/WorkfrontID" },
+        "name":                  { "type": "string" },
+        "objCode":               { "type": "string", "example": "OPTASK" },
+        "status":                { "type": "string", "enum": ["NEW","INP","CPL","AWF","PCA","AVP","CLS"] },
+        "priority":              { "type": "integer", "enum": [0,1,2,3,4] },
+        "projectID":             { "$ref": "#/definitions/WorkfrontID" },
+        "assignedToID":          { "$ref": "#/definitions/WorkfrontID" },
+        "description":           { "type": "string" },
+        "entryDate":             { "type": "string", "format": "date-time" },
+        "plannedCompletionDate": { "type": "string", "format": "date-time" }
+      }
+    },
+
+    "User": {
+      "type": "object",
+      "properties": {
+        "ID":          { "$ref": "#/definitions/WorkfrontID" },
+        "name":        { "type": "string" },
+        "username":    { "type": "string" },
+        "emailAddr":   { "type": "string", "format": "email" },
+        "firstName":   { "type": "string" },
+        "lastName":    { "type": "string" },
+        "title":       { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "isActive":    { "type": "boolean" },
+        "homeGroupID": { "$ref": "#/definitions/WorkfrontID" }
+      }
+    },
+
+    "Document": {
+      "type": "object",
+      "properties": {
+        "ID":               { "$ref": "#/definitions/WorkfrontID" },
+        "name":             { "type": "string" },
+        "objCode":          { "type": "string", "example": "DOCU" },
+        "description":      { "type": "string" },
+        "docObjCode":       { "type": "string", "enum": ["PROJ","TASK","OPTASK","USER"] },
+        "objID":            { "$ref": "#/definitions/WorkfrontID" },
+        "fileExtension":    { "type": "string" },
+        "fileSize":         { "type": "integer" },
+        "downloadURL":      { "type": "string" },
+        "entryDate":        { "type": "string", "format": "date-time" },
+        "lastUpdateDate":   { "type": "string", "format": "date-time" },
+        "currentVersionID": { "$ref": "#/definitions/WorkfrontID" }
+      }
+    },
+
+    "Portfolio": {
+      "type": "object",
+      "properties": {
+        "ID":          { "$ref": "#/definitions/WorkfrontID" },
+        "name":        { "type": "string" },
+        "description": { "type": "string" },
+        "isActive":    { "type": "boolean" },
+        "ownerID":     { "$ref": "#/definitions/WorkfrontID" },
+        "budget":      { "type": "number" },
+        "netValue":    { "type": "number" },
+        "roi":         { "type": "number" }
+      }
+    }
+  },
+
+  "paths": {
+
+    "/login": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Login and obtain a session ID",
+        "parameters": [
+          { "name": "username", "in": "query", "required": true, "type": "string" },
+          { "name": "password", "in": "query", "required": true, "type": "string", "format": "password" }
+        ],
+        "responses": {
+          "200": { "description": "Login successful", "schema": { "$ref": "#/definitions/LoginResponse" } },
+          "401": { "description": "Invalid credentials", "schema": { "$ref": "#/definitions/ErrorResponse" } }
+        }
+      }
+    },
+
+    "/logout": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "End the current session",
+        "parameters": [ { "$ref": "#/parameters/SessionIDQuery" } ],
+        "responses": { "200": { "description": "Logged out successfully" } }
+      }
+    },
+
+    "/user/getApiKey": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Retrieve the user's API key",
+        "parameters": [
+          { "$ref": "#/parameters/SessionIDQuery" },
+          { "name": "username", "in": "query", "type": "string" },
+          { "name": "password", "in": "query", "type": "string", "format": "password" }
+        ],
+        "responses": {
+          "200": { "description": "API key returned", "schema": { "type": "object", "properties": { "data": { "type": "string" } } } }
+        }
+      }
+    },
+
+    "/project": {
+      "get": {
+        "tags": ["Projects"],
+        "summary": "Search / list projects",
+        "security": [{ "SessionID": [] }, { "ApiKey": [] }],
+        "parameters": [
+          { "$ref": "#/parameters/SessionIDQuery" },
+          { "$ref": "#/parameters/LimitParam" },
+          { "$ref": "#/parameters/OffsetParam" },
+          { "$ref": "#/parameters/FieldsParam" },
+          { "name": "status",   "in": "query", "type": "string", "enum": ["CUR","PLN","CPL","DED","REQ","APR"] },
+          { "name": "name",     "in": "query", "type": "string" },
+          { "name": "ownerID",  "in": "query", "type": "string" }
+        ],
+        "responses": {
+          "200": { "description": "List of projects", "schema": { "type": "object", "properties": { "data": { "type": "array", "items": { "$ref": "#/definitions/Project" } } } } }
+        }
+      },
+      "post": {
+        "tags": ["Projects"],
+        "summary": "Create a new project",
+        "security": [{ "SessionID": [] }, { "ApiKey": [] }],
+        "parameters": [
+          { "$ref": "#/parameters/SessionIDQuery" },
+          { "$ref": "#/parameters/FieldsParam" },
+          { "name": "body", "in": "body", "required": true, "schema": { "$ref": "#/definitions/ProjectCreate" } }
+        ],
+        "responses": {
+          "200": { "description": "Project created", "schema": { "type": "object", "properties": { "data": { "$ref": "#/definitions/Project" } } } }
+        }
+      }
+    },
+
+    "/project/{ID}": {
+      "get": {
+        "tags": ["Projects"],
+        "summary": "Get a project by ID",
+        "security": [{ "SessionID": [] }, { "ApiKey": [] }],
+        "parameters": [
+          { "$ref": "#/parameters/PathID" },
+          { "$ref": "#/parameters/SessionIDQuery" },
+          { "$ref": "#/parameters/FieldsParam" }
+        ],
+        "responses": {
+          "200": { "description": "Project found", "schema": { "type": "object", "properties": { "data": { "$ref": "#/definitions/Project" } } } },
+          "404": { "description": "Project not found" }
+        }
+      },
+      "put": {
+        "tags": ["Projects"],
+        "summary": "Update a project",
+        "security": [{ "SessionID": [] }, { "ApiKey": [] }],
+        "parameters": [
+          { "$ref": "#/parameters/PathID" },
+          { "$ref": "#/parameters/SessionIDQuery" },
+          { "name": "body", "in": "body", "schema": { "$ref": "#/definitions/ProjectCreate" } }
+        ],
+        "responses": { "200": { "description": "Project updated" } }
+      },
+      "delete": {
+        "tags": ["Projects"],
+        "summary": "Delete a project",
+        "security": [{ "SessionID": [] }, { "ApiKey": [] }],
+        "parameters": [
+          { "$ref": "#/parameters/PathID" },
+          { "$ref": "#/parameters/SessionIDQuery" },
+          { "name": "force", "in": "query", "type": "boolean", "default": false }
+        ],
+        "responses": { "200": { "description": "Project deleted" } }
+      }
+    },
+
+    "/project/{ID}/tasks": {
+      "get": {
+        "tags": ["Projects"],
+        "summary": "Get tasks for a project",
+        "security": [{ "SessionID": [] }, { "ApiKey": [] }],
+        "parameters": [
+          { "$ref": "#/parameters/PathID" },
+          { "$ref": "#/parameters/SessionIDQuery" },
+          { "$ref": "#/parameters/FieldsParam" },
+          { "$ref": "#/parameters/LimitParam" }
+        ],
+        "responses": {
+          "200": { "description": "Task list", "schema": { "type": "object", "properties": { "data": { "type": "array", "items": { "$ref": "#/definitions/Task" } } } } }
+        }
+      }
+    },
+
+    "/task": {
+      "get": {
+        "tags": ["Tasks"],
+        "summary": "Search / list tasks",
+        "security": [{ "SessionID": [] }, { "ApiKey": [] }],
+        "parameters": [
+          { "$ref": "#/parameters/SessionIDQuery" },
+          { "$ref": "#/parameters/LimitParam" },
+          { "$ref": "#/parameters/OffsetParam" },
+          { "$ref": "#/parameters/FieldsParam" },
+          { "name": "projectID",    "in": "query", "type": "string" },
+          { "name": "status",       "in": "query", "type": "string", "enum": ["NEW","INP","CPL"] },
+          { "name": "assignedToID", "in": "query", "type": "string" }
+        ],
+        "responses": {
+          "200": { "description": "Task list", "schema": { "type": "object", "properties": { "data": { "type": "array", "items": { "$ref": "#/definitions/Task" } } } } }
+        }
+      },
+      "post": {
+        "tags": ["Tasks"],
+        "summary": "Create a new task",
+        "security": [{ "SessionID": [] }, { "ApiKey": [] }],
+        "parameters": [
+          { "$ref": "#/parameters/SessionIDQuery" },
+          { "name": "body", "in": "body", "required": true, "schema": { "$ref": "#/definitions/TaskCreate" } }
+        ],
+        "responses": { "200": { "description": "Task created", "schema": { "type": "object", "properties": { "data": { "$ref": "#/definitions/Task" } } } } }
+      }
+    },
+
+    "/task/{ID}": {
+      "get": {
+        "tags": ["Tasks"],
+        "summary": "Get a task by ID",
+        "security": [{ "SessionID": [] }, { "ApiKey": [] }],
+        "parameters": [ { "$ref": "#/parameters/PathID" }, { "$ref": "#/parameters/SessionIDQuery" }, { "$ref": "#/parameters/FieldsParam" } ],
+        "responses": { "200": { "description": "Task found" } }
+      },
+      "put": {
+        "tags": ["Tasks"],
+        "summary": "Update a task",
+        "security": [{ "SessionID": [] }, { "ApiKey": [] }],
+        "parameters": [
+          { "$ref": "#/parameters/PathID" },
+          { "$ref": "#/parameters/SessionIDQuery" },
+          { "name": "body", "in": "body", "schema": { "$ref": "#/definitions/TaskCreate" } }
+        ],
+        "responses": { "200": { "description": "Task updated" } }
+      },
+      "delete": {
+        "tags": ["Tasks"],
+        "summary": "Delete a task",
+        "security": [{ "SessionID": [] }, { "ApiKey": [] }],
+        "parameters": [ { "$ref": "#/parameters/PathID" }, { "$ref": "#/parameters/SessionIDQuery" } ],
+        "responses": { "200": { "description": "Task deleted" } }
+      }
+    },
+
+    "/optask": {
+      "get": {
+        "tags": ["Issues"],
+        "summary": "Search / list issues",
+        "security": [{ "SessionID": [] }, { "ApiKey": [] }],
+        "parameters": [
+          { "$ref": "#/parameters/SessionIDQuery" },
+          { "$ref": "#/parameters/LimitParam" },
+          { "$ref": "#/parameters/OffsetParam" },
+          { "$ref": "#/parameters/FieldsParam" },
+          { "name": "projectID", "in": "query", "type": "string" },
+          { "name": "status",    "in": "query", "type": "string" }
+        ],
+        "responses": { "200": { "description": "Issue list", "schema": { "type": "object", "properties": { "data": { "type": "array", "items": { "$ref": "#/definitions/Issue" } } } } } }
+      },
+      "post": {
+        "tags": ["Issues"],
+        "summary": "Create a new issue",
+        "security": [{ "SessionID": [] }, { "ApiKey": [] }],
+        "parameters": [
+          { "$ref": "#/parameters/SessionIDQuery" },
+          { "name": "body", "in": "body", "required": true, "schema": { "type": "object", "required": ["name"], "properties": { "name": { "type": "string" }, "projectID": { "type": "string" }, "description": { "type": "string" }, "priority": { "type": "integer" } } } }
+        ],
+        "responses": { "200": { "description": "Issue created" } }
+      }
+    },
+
+    "/optask/{ID}": {
+      "get": {
+        "tags": ["Issues"],
+        "summary": "Get an issue by ID",
+        "security": [{ "SessionID": [] }, { "ApiKey": [] }],
+        "parameters": [ { "$ref": "#/parameters/PathID" }, { "$ref": "#/parameters/SessionIDQuery" } ],
+        "responses": { "200": { "description": "Issue found" } }
+      },
+      "put": {
+        "tags": ["Issues"],
+        "summary": "Update an issue",
+        "security": [{ "SessionID": [] }, { "ApiKey": [] }],
+        "parameters": [ { "$ref": "#/parameters/PathID" }, { "$ref": "#/parameters/SessionIDQuery" }, { "name": "body", "in": "body", "schema": { "type": "object" } } ],
+        "responses": { "200": { "description": "Issue updated" } }
+      },
+      "delete": {
+        "tags": ["Issues"],
+        "summary": "Delete an issue",
+        "security": [{ "SessionID": [] }, { "ApiKey": [] }],
+        "parameters": [ { "$ref": "#/parameters/PathID" }, { "$ref": "#/parameters/SessionIDQuery" } ],
+        "responses": { "200": { "description": "Issue deleted" } }
+      }
+    },
+
+    "/user": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Search / list users",
+        "security": [{ "SessionID": [] }, { "ApiKey": [] }],
+        "parameters": [
+          { "$ref": "#/parameters/SessionIDQuery" },
+          { "$ref": "#/parameters/LimitParam" },
+          { "$ref": "#/parameters/OffsetParam" },
+          { "$ref": "#/parameters/FieldsParam" },
+          { "name": "isActive",    "in": "query", "type": "boolean" },
+          { "name": "emailAddr",   "in": "query", "type": "string" },
+          { "name": "homeGroupID", "in": "query", "type": "string" }
+        ],
+        "responses": { "200": { "description": "User list", "schema": { "type": "object", "properties": { "data": { "type": "array", "items": { "$ref": "#/definitions/User" } } } } } }
+      }
+    },
+
+    "/user/{ID}": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get a user by ID",
+        "security": [{ "SessionID": [] }, { "ApiKey": [] }],
+        "parameters": [ { "$ref": "#/parameters/PathID" }, { "$ref": "#/parameters/SessionIDQuery" }, { "$ref": "#/parameters/FieldsParam" } ],
+        "responses": { "200": { "description": "User found", "schema": { "type": "object", "properties": { "data": { "$ref": "#/definitions/User" } } } } }
+      },
+      "put": {
+        "tags": ["Users"],
+        "summary": "Update a user",
+        "security": [{ "SessionID": [] }, { "ApiKey": [] }],
+        "parameters": [ { "$ref": "#/parameters/PathID" }, { "$ref": "#/parameters/SessionIDQuery" }, { "name": "body", "in": "body", "schema": { "$ref": "#/definitions/User" } } ],
+        "responses": { "200": { "description": "User updated" } }
+      }
+    },
+
+    "/document": {
+      "get": {
+        "tags": ["Documents"],
+        "summary": "Search / list documents",
+        "security": [{ "SessionID": [] }, { "ApiKey": [] }],
+        "parameters": [
+          { "$ref": "#/parameters/SessionIDQuery" },
+          { "$ref": "#/parameters/LimitParam" },
+          { "$ref": "#/parameters/OffsetParam" },
+          { "$ref": "#/parameters/FieldsParam" },
+          { "name": "objID",      "in": "query", "type": "string" },
+          { "name": "docObjCode", "in": "query", "type": "string", "enum": ["PROJ","TASK","OPTASK","USER"] }
+        ],
+        "responses": { "200": { "description": "Document list", "schema": { "type": "object", "properties": { "data": { "type": "array", "items": { "$ref": "#/definitions/Document" } } } } } }
+      }
+    },
+
+    "/document/{ID}": {
+      "get": {
+        "tags": ["Documents"],
+        "summary": "Get document metadata by ID",
+        "security": [{ "SessionID": [] }, { "ApiKey": [] }],
+        "parameters": [ { "$ref": "#/parameters/PathID" }, { "$ref": "#/parameters/SessionIDQuery" }, { "$ref": "#/parameters/FieldsParam" } ],
+        "responses": { "200": { "description": "Document metadata", "schema": { "type": "object", "properties": { "data": { "$ref": "#/definitions/Document" } } } } }
+      },
+      "delete": {
+        "tags": ["Documents"],
+        "summary": "Delete a document",
+        "security": [{ "SessionID": [] }, { "ApiKey": [] }],
+        "parameters": [ { "$ref": "#/parameters/PathID" }, { "$ref": "#/parameters/SessionIDQuery" } ],
+        "responses": { "200": { "description": "Document deleted" } }
+      }
+    },
+
+    "/portfolio": {
+      "get": {
+        "tags": ["Portfolios"],
+        "summary": "List portfolios",
+        "security": [{ "SessionID": [] }, { "ApiKey": [] }],
+        "parameters": [ { "$ref": "#/parameters/SessionIDQuery" }, { "$ref": "#/parameters/LimitParam" }, { "$ref": "#/parameters/OffsetParam" }, { "$ref": "#/parameters/FieldsParam" } ],
+        "responses": { "200": { "description": "Portfolio list", "schema": { "type": "object", "properties": { "data": { "type": "array", "items": { "$ref": "#/definitions/Portfolio" } } } } } }
+      },
+      "post": {
+        "tags": ["Portfolios"],
+        "summary": "Create a portfolio",
+        "security": [{ "SessionID": [] }, { "ApiKey": [] }],
+        "parameters": [ { "$ref": "#/parameters/SessionIDQuery" }, { "name": "body", "in": "body", "schema": { "$ref": "#/definitions/Portfolio" } } ],
+        "responses": { "200": { "description": "Portfolio created" } }
+      }
+    },
+
+    "/portfolio/{ID}": {
+      "get": {
+        "tags": ["Portfolios"],
+        "summary": "Get a portfolio by ID",
+        "security": [{ "SessionID": [] }, { "ApiKey": [] }],
+        "parameters": [ { "$ref": "#/parameters/PathID" }, { "$ref": "#/parameters/SessionIDQuery" }, { "$ref": "#/parameters/FieldsParam" } ],
+        "responses": { "200": { "description": "Portfolio found" } }
+      },
+      "put": {
+        "tags": ["Portfolios"],
+        "summary": "Update a portfolio",
+        "security": [{ "SessionID": [] }, { "ApiKey": [] }],
+        "parameters": [ { "$ref": "#/parameters/PathID" }, { "$ref": "#/parameters/SessionIDQuery" }, { "name": "body", "in": "body", "schema": { "$ref": "#/definitions/Portfolio" } } ],
+        "responses": { "200": { "description": "Portfolio updated" } }
+      },
+      "delete": {
+        "tags": ["Portfolios"],
+        "summary": "Delete a portfolio",
+        "security": [{ "SessionID": [] }, { "ApiKey": [] }],
+        "parameters": [ { "$ref": "#/parameters/PathID" }, { "$ref": "#/parameters/SessionIDQuery" } ],
+        "responses": { "200": { "description": "Portfolio deleted" } }
+      }
+    },
+
+    "/{objectCode}/metadata": {
+      "get": {
+        "tags": ["Metadata"],
+        "summary": "Get field metadata for an object type",
+        "description": "Returns all available fields, references, collections, and allowed operations for the specified object type.",
+        "security": [{ "SessionID": [] }, { "ApiKey": [] }],
+        "parameters": [
+          { "name": "objectCode", "in": "path", "required": true, "type": "string", "description": "Lower-case object type name (e.g., project, task, user)" },
+          { "$ref": "#/parameters/SessionIDQuery" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Metadata for the object type",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "name":         { "type": "string" },
+                    "label":        { "type": "string" },
+                    "objCode":      { "type": "string" },
+                    "fields":       { "type": "object" },
+                    "references":   { "type": "object" },
+                    "collections":  { "type": "object" },
+                    "operations":   { "type": "array", "items": { "type": "string" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

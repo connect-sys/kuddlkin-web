@@ -1,0 +1,814 @@
+= Adobe Workfront REST API Reference
+:doctype: book
+:toc: left
+:toc-title: Table of Contents
+:toclevels: 3
+:sectnums:
+:icons: font
+:source-highlighter: rouge
+:rouge-style: github
+:version: 21.0
+:base-url: https://{domain}.workfront.com/attask/api/v21.0
+:imagesdir: images
+:author: Adobe Workfront Developer Team
+:revdate: 2024
+:description: Complete OpenAPI / Swagger reference for the Adobe Workfront REST API (attask endpoints), covering authentication, projects, tasks, issues, users, documents, portfolios, and metadata.
+
+// ============================================================
+== Overview
+// ============================================================
+
+Adobe Workfront exposes a RESTful HTTP API — historically referred to as the **attask** API — that lets you programmatically manage *Projects*, *Tasks*, *Issues*, *Users*, *Documents*, *Portfolios*, and many other Workfront objects.
+
+[NOTE]
+====
+This document is generated from the OpenAPI 3.0 specification (`workfront-openapi.yaml`).
+The specification targets **API version {version}**.
+====
+
+=== Base URL
+
+[source]
+----
+https://{domain}.workfront.com/attask/api/v21.0
+----
+
+[cols="1,3", options="header"]
+|===
+| Variable | Description
+| `{domain}` | Your Workfront company subdomain (e.g., `acmecorp`)
+|===
+
+.Sandbox / Preview environment
+[source]
+----
+https://{domain}.preview.workfront.com/attask/api/v21.0
+----
+
+=== Supported HTTP Methods
+
+[cols="1,2,4", options="header"]
+|===
+| Method | Operation | Notes
+| `GET` | Retrieve objects | Search or fetch by ID
+| `POST` | Create objects | Body must be JSON
+| `PUT` | Update objects | Partial updates supported
+| `DELETE` | Delete objects | Some objects require `force=true`
+|===
+
+TIP: For HTTP clients that only support `GET` and `POST`, append `&method=PUT` or `&method=DELETE` to the query string.
+
+=== Response Envelope
+
+All responses are wrapped in a standard JSON envelope:
+
+[source,json]
+----
+{
+  "data": { ... }          // single object
+}
+// or
+{
+  "data": [ ... ]          // collection
+}
+// or
+{
+  "error": {
+    "message": "...",
+    "class": "...",
+    "msgKey": "..."
+  }
+}
+----
+
+// ============================================================
+== Authentication
+// ============================================================
+
+Workfront supports two authentication strategies:
+
+=== Session-based Authentication
+
+. Call `POST /login` with `username` and `password`.
+. Capture the `sessionID` from the response.
+. Pass `sessionID` as a query parameter on every subsequent request.
+. Terminate the session with `GET /logout`.
+
+.Login request example
+[source,bash]
+----
+curl -X POST \
+  "https://acmecorp.workfront.com/attask/api/v21.0/login?username=admin@acme.com&password=secret"
+----
+
+.Login response
+[source,json]
+----
+{
+  "data": {
+    "sessionID": "abc123def456",
+    "userID": "5cf0415a009ec7f654918e8ae696aab9"
+  }
+}
+----
+
+=== API Key Authentication
+
+. Retrieve your API key via `GET /user/getApiKey`.
+. Pass `apiKey=<key>` as a query parameter instead of `sessionID`.
+
+[source,bash]
+----
+curl "https://acmecorp.workfront.com/attask/api/v21.0/project?apiKey=mykey&fields=name,status"
+----
+
+---
+
+==== `POST /login`
+
+Authenticate and obtain a session token.
+
+[cols="1,3", options="header"]
+|===
+| Parameter | Description
+| `username` _(required)_ | Workfront login email or username
+| `password` _(required)_ | User password
+|===
+
+[cols="1,3", options="header"]
+|===
+| Response Code | Meaning
+| `200` | Login successful — body contains `sessionID` and `userID`
+| `401` | Invalid credentials
+|===
+
+---
+
+==== `GET /logout`
+
+Terminates the current session.
+
+[cols="1,3", options="header"]
+|===
+| Parameter | Description
+| `sessionID` _(required)_ | Active session token
+|===
+
+---
+
+==== `GET /user/getApiKey`
+
+Returns the API key for the authenticated user.
+
+// ============================================================
+== Common Query Parameters
+// ============================================================
+
+The following parameters apply to most `GET` and `POST` requests.
+
+[cols="1,1,4", options="header"]
+|===
+| Parameter | Type | Description
+| `sessionID` | string | Active session token
+| `apiKey` | string | API key (alternative to sessionID)
+| `fields` | string | Comma-separated field names to include in the response. Use `*` for all fields, prefix `!` to exclude.
+| `$$LIMIT` | integer | Maximum records returned (default `100`, max `2000`)
+| `$$FIRST` | integer | Zero-based offset for pagination (default `0`)
+| `method` | string | HTTP method override: `GET`, `POST`, `PUT`, `DELETE`
+|===
+
+.Pagination example
+[source,bash]
+----
+GET /project?sessionID=abc&$$LIMIT=50&$$FIRST=100
+----
+
+.Field selection example
+[source,bash]
+----
+GET /project/{ID}?sessionID=abc&fields=name,status,percentComplete,owner:name
+----
+
+// ============================================================
+== Projects
+// ============================================================
+
+Workfront *object code*: `PROJ`
+
+A Project is the top-level container for work in Workfront.
+
+=== Project Status Codes
+
+[cols="1,3", options="header"]
+|===
+| Code | Label
+| `CUR` | Current
+| `PLN` | Planning
+| `CPL` | Complete
+| `DED` | Dead
+| `REQ` | Requested
+| `APR` | Approved
+|===
+
+=== Project Condition Codes
+
+[cols="1,3", options="header"]
+|===
+| Code | Label
+| `GT` | On Target
+| `OK` | At Risk
+| `BC` | In Trouble
+|===
+
+=== Priority Values
+
+[cols="1,3", options="header"]
+|===
+| Value | Label
+| `0` | None
+| `1` | Low
+| `2` | Normal
+| `3` | High
+| `4` | Urgent
+|===
+
+---
+
+==== `GET /project` — List Projects
+
+Search or list all projects accessible to the authenticated user.
+
+[cols="1,1,1,4", options="header"]
+|===
+| Parameter | Type | Required | Description
+| `sessionID` | string | Yes | Session token
+| `status` | string | No | Filter by status code (`CUR`, `PLN`, etc.)
+| `name` | string | No | Filter by name; supports `*` wildcards
+| `ownerID` | string | No | Filter by owner User ID
+| `$$LIMIT` | integer | No | Max records (default 100)
+| `$$FIRST` | integer | No | Pagination offset
+| `fields` | string | No | Fields to return
+|===
+
+.Example — list active projects
+[source,bash]
+----
+curl "https://acme.workfront.com/attask/api/v21.0/project \
+  ?sessionID=abc \
+  &status=CUR \
+  &fields=name,status,percentComplete,plannedCompletionDate"
+----
+
+.Response
+[source,json]
+----
+{
+  "data": [
+    {
+      "ID": "5cf0415a009ec7f654918e8ae696aab9",
+      "name": "Website Redesign Q3",
+      "status": "CUR",
+      "percentComplete": 45.0,
+      "plannedCompletionDate": "2024-06-30T17:00:00:000-0500"
+    }
+  ]
+}
+----
+
+---
+
+==== `POST /project` — Create Project
+
+[cols="1,1,1,4", options="header"]
+|===
+| Field | Type | Required | Description
+| `name` | string | *Yes* | Project name
+| `description` | string | No | Project description
+| `plannedStartDate` | date-time | No | ISO-8601 start date
+| `plannedCompletionDate` | date-time | No | ISO-8601 completion date
+| `ownerID` | ID | No | Workfront User ID of project owner
+| `portfolioID` | ID | No | Portfolio to assign to
+| `programID` | ID | No | Program to assign to
+| `priority` | integer | No | 0–4 (None → Urgent)
+| `status` | string | No | Initial status code
+|===
+
+.Example
+[source,bash]
+----
+curl -X POST \
+  "https://acme.workfront.com/attask/api/v21.0/project?sessionID=abc" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "New Marketing Campaign",
+    "plannedStartDate": "2024-03-01T08:00:00.000Z",
+    "plannedCompletionDate": "2024-09-30T17:00:00.000Z",
+    "priority": 2
+  }'
+----
+
+---
+
+==== `GET /project/{ID}` — Get Project by ID
+
+Returns a single project.
+
+---
+
+==== `PUT /project/{ID}` — Update Project
+
+Send only the fields you want to change.
+
+---
+
+==== `DELETE /project/{ID}` — Delete Project
+
+[cols="1,1,4", options="header"]
+|===
+| Parameter | Type | Description
+| `ID` | ID | Project ID _(path)_
+| `force` | boolean | Force-delete even with child tasks/issues (default `false`)
+|===
+
+---
+
+==== `GET /project/{ID}/tasks` — Get Project Tasks
+
+Returns all tasks belonging to the specified project.
+
+// ============================================================
+== Tasks
+// ============================================================
+
+Workfront *object code*: `TASK`
+
+=== Task Status Codes
+
+[cols="1,3", options="header"]
+|===
+| Code | Label
+| `NEW` | New
+| `INP` | In Progress
+| `CPL` | Complete
+|===
+
+=== Duration Units
+
+[cols="1,3", options="header"]
+|===
+| Code | Label
+| `M` | Minutes
+| `H` | Hours
+| `D` | Days
+| `W` | Weeks
+|===
+
+---
+
+==== `GET /task` — List Tasks
+
+[cols="1,1,1,4", options="header"]
+|===
+| Parameter | Type | Required | Description
+| `projectID` | ID | No | Filter by project
+| `status` | string | No | `NEW`, `INP`, `CPL`
+| `assignedToID` | ID | No | Filter by assignee
+| `$$LIMIT` | integer | No | Max records
+| `$$FIRST` | integer | No | Offset
+| `fields` | string | No | Fields to return
+|===
+
+---
+
+==== `POST /task` — Create Task
+
+[cols="1,1,1,4", options="header"]
+|===
+| Field | Type | Required | Description
+| `name` | string | *Yes* | Task name
+| `projectID` | ID | *Yes* | Parent project ID
+| `parentID` | ID | No | Parent task ID (for sub-tasks)
+| `assignedToID` | ID | No | Assignee User ID
+| `plannedStartDate` | date-time | No | Planned start
+| `plannedCompletionDate` | date-time | No | Planned completion
+| `duration` | integer | No | Duration in selected units
+| `durationUnit` | string | No | `M`, `H`, `D`, `W`
+| `priority` | integer | No | 0–4
+|===
+
+.Example — create a task
+[source,bash]
+----
+curl -X POST \
+  "https://acme.workfront.com/attask/api/v21.0/task?sessionID=abc" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Design Wireframes",
+    "projectID": "5cf0415a009ec7f654918e8ae696aab9",
+    "duration": 5,
+    "durationUnit": "D",
+    "priority": 3
+  }'
+----
+
+---
+
+==== `GET /task/{ID}` — Get Task
+
+==== `PUT /task/{ID}` — Update Task
+
+==== `DELETE /task/{ID}` — Delete Task
+
+// ============================================================
+== Issues (Requests)
+// ============================================================
+
+Workfront *object code*: `OPTASK`
+
+Issues (also called Requests) represent unplanned work, bugs, or support tickets in Workfront.
+
+=== Issue Status Codes
+
+[cols="1,3", options="header"]
+|===
+| Code | Label
+| `NEW` | New
+| `INP` | In Progress
+| `CPL` | Complete
+| `AWF` | Awaiting Feedback
+| `PCA` | Planning — Cancelled
+| `AVP` | Approved
+| `CLS` | Closed
+|===
+
+---
+
+==== `GET /optask` — List Issues
+
+==== `POST /optask` — Create Issue
+
+[cols="1,1,1,4", options="header"]
+|===
+| Field | Type | Required | Description
+| `name` | string | *Yes* | Issue title
+| `projectID` | ID | No | Parent project (if linked)
+| `description` | string | No | Issue description
+| `priority` | integer | No | 0–4
+| `assignedToID` | ID | No | Assignee User ID
+|===
+
+==== `GET /optask/{ID}` — Get Issue
+
+==== `PUT /optask/{ID}` — Update Issue
+
+==== `DELETE /optask/{ID}` — Delete Issue
+
+// ============================================================
+== Users
+// ============================================================
+
+Workfront *object code*: `USER`
+
+---
+
+==== `GET /user` — List Users
+
+[cols="1,1,1,4", options="header"]
+|===
+| Parameter | Type | Required | Description
+| `isActive` | boolean | No | Filter active/inactive users
+| `emailAddr` | string | No | Filter by email address
+| `homeGroupID` | ID | No | Filter by home group
+| `fields` | string | No | Fields to include
+|===
+
+---
+
+==== `GET /user/{ID}` — Get User
+
+==== `PUT /user/{ID}` — Update User
+
+Key updatable fields: `firstName`, `lastName`, `title`, `phoneNumber`, `emailAddr`.
+
+// ============================================================
+== Documents
+// ============================================================
+
+Workfront *object code*: `DOCU`
+
+Documents can be attached to Projects, Tasks, Issues, and Users.
+
+=== Parent Object Codes
+
+[cols="1,3", options="header"]
+|===
+| Code | Parent Object
+| `PROJ` | Project
+| `TASK` | Task
+| `OPTASK` | Issue / Request
+| `USER` | User
+|===
+
+---
+
+==== `GET /document` — List Documents
+
+[cols="1,1,1,4", options="header"]
+|===
+| Parameter | Type | Required | Description
+| `objID` | ID | No | Parent object ID
+| `docObjCode` | string | No | Parent object type: `PROJ`, `TASK`, `OPTASK`, `USER`
+| `fields` | string | No | Fields to return
+|===
+
+---
+
+==== `GET /document/{ID}` — Get Document Metadata
+
+Returns document metadata including a `downloadURL`.
+
+.Example — get download URL
+[source,bash]
+----
+curl "https://acme.workfront.com/attask/api/v21.0/document/DOC_ID \
+  ?sessionID=abc&fields=name,fileExtension,fileSize,downloadURL"
+----
+
+---
+
+==== `DELETE /document/{ID}` — Delete Document
+
+// ============================================================
+== Portfolios
+// ============================================================
+
+Workfront *object code*: `PORT`
+
+---
+
+==== `GET /portfolio` — List Portfolios
+
+==== `POST /portfolio` — Create Portfolio
+
+==== `GET /portfolio/{ID}` — Get Portfolio
+
+==== `PUT /portfolio/{ID}` — Update Portfolio
+
+==== `DELETE /portfolio/{ID}` — Delete Portfolio
+
+// ============================================================
+== Metadata
+// ============================================================
+
+The metadata endpoint returns the full field schema for any object type.
+
+---
+
+==== `GET /{objectCode}/metadata`
+
+[cols="1,1,1,4", options="header"]
+|===
+| Parameter | Type | Required | Description
+| `objectCode` | string | *Yes* | Lower-case object name (e.g., `project`, `task`, `user`) _(path)_
+| `sessionID` | string | Yes | Session token
+|===
+
+.Example — project metadata
+[source,bash]
+----
+curl "https://acme.workfront.com/attask/api/v21.0/project/metadata?sessionID=abc"
+----
+
+.Response structure
+[source,json]
+----
+{
+  "data": {
+    "name": "Project",
+    "label": "Project",
+    "objCode": "PROJ",
+    "fields": {
+      "name": { "type": "string", "label": "Project Name" },
+      "status": { "type": "string", "label": "Status" }
+    },
+    "references": { ... },
+    "collections": { ... },
+    "operations": ["GET","POST","PUT","DELETE","SEARCH","COUNT"]
+  }
+}
+----
+
+// ============================================================
+== Filtering & Sorting
+// ============================================================
+
+=== Filter Operators
+
+Append operators to field names in the query string:
+
+[cols="1,3,3", options="header"]
+|===
+| Suffix | Operator | Example
+| _(none)_ | Equals | `status=CUR`
+| `_Mod=in` | In list | `status=CUR&status_Mod=in`
+| `_Mod=notin` | Not in list | `status=CPL&status_Mod=notin`
+| `_Mod=contains` | Contains (string) | `name=Marketing&name_Mod=contains`
+| `_Mod=notcontains` | Does not contain | —
+| `_Mod=gte` | Greater than or equal | `percentComplete=50&percentComplete_Mod=gte`
+| `_Mod=lte` | Less than or equal | —
+| `_Mod=between` | Between two values | —
+| `_Mod=isblank` | Field is null/empty | —
+| `_Mod=notblank` | Field is not null | —
+|===
+
+=== Sorting
+
+[cols="1,3", options="header"]
+|===
+| Parameter | Description
+| `$$SORT` | Field to sort by (e.g., `$$SORT=plannedCompletionDate`)
+| `$$DIRECTION` | `asc` (ascending) or `desc` (descending, default)
+|===
+
+// ============================================================
+== Error Handling
+// ============================================================
+
+=== Error Response Shape
+
+[source,json]
+----
+{
+  "error": {
+    "message": "You do not have access to perform this operation.",
+    "class": "com.attask.exception.AttaskException",
+    "msgKey": "ERR_PERMISSION_DENIED"
+  }
+}
+----
+
+=== Common Error Codes
+
+[cols="1,1,4", options="header"]
+|===
+| HTTP Status | msgKey | Description
+| `400` | `ERR_INVALID_PARAMETER` | A required parameter is missing or malformed
+| `401` | `ERR_SESSION_INVALID` | Session ID is expired or invalid
+| `403` | `ERR_PERMISSION_DENIED` | User lacks permission for the operation
+| `404` | `ERR_RECORD_NOT_FOUND` | Object with the given ID does not exist
+| `429` | `ERR_RATE_LIMIT` | Too many requests — apply back-off and retry
+| `500` | `ERR_SYSTEM_ERROR` | Internal server error
+|===
+
+// ============================================================
+== Data Types & ID Format
+// ============================================================
+
+[cols="1,3,3", options="header"]
+|===
+| Type | Format | Example
+| ID | 32-character hex string | `5cf0415a009ec7f654918e8ae696aab9`
+| date-time | ISO-8601 with milliseconds | `2024-06-30T17:00:00:000-0500`
+| boolean | JSON boolean | `true` / `false`
+| integer | JSON number | `42`
+| float | JSON number | `87.5`
+|===
+
+// ============================================================
+== API Versioning
+// ============================================================
+
+[cols="1,3", options="header"]
+|===
+| Version | Notes
+| `v21.0` | Latest stable (this document)
+| `v20.0` | Previous stable
+| `v19.0` | Supported
+| `v18.0` | Supported
+| `v17.0` | Supported (legacy)
+| `unsupported` | Use `unsupported` in the URL for pre-release features
+|===
+
+[WARNING]
+====
+Adobe may deprecate older API versions. Always target the latest stable version for new integrations.
+====
+
+// ============================================================
+== Code Examples
+// ============================================================
+
+=== cURL — Complete workflow
+
+.Step 1: Login
+[source,bash]
+----
+SESSION=$(curl -s -X POST \
+  "https://acme.workfront.com/attask/api/v21.0/login?username=admin@acme.com&password=secret" \
+  | jq -r '.data.sessionID')
+----
+
+.Step 2: Create a project
+[source,bash]
+----
+PROJECT_ID=$(curl -s -X POST \
+  "https://acme.workfront.com/attask/api/v21.0/project?sessionID=$SESSION" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Q4 Campaign","plannedStartDate":"2024-10-01T08:00:00.000Z"}' \
+  | jq -r '.data.ID')
+----
+
+.Step 3: Create a task in the project
+[source,bash]
+----
+curl -s -X POST \
+  "https://acme.workfront.com/attask/api/v21.0/task?sessionID=$SESSION" \
+  -H "Content-Type: application/json" \
+  -d "{\"name\":\"Kickoff Meeting\",\"projectID\":\"$PROJECT_ID\",\"duration\":1,\"durationUnit\":\"D\"}"
+----
+
+.Step 4: Logout
+[source,bash]
+----
+curl "https://acme.workfront.com/attask/api/v21.0/logout?sessionID=$SESSION"
+----
+
+---
+
+=== JavaScript (Fetch API)
+
+[source,javascript]
+----
+const BASE = 'https://acme.workfront.com/attask/api/v21.0';
+
+async function login(username, password) {
+  const res = await fetch(`${BASE}/login?username=${username}&password=${password}`, {
+    method: 'POST'
+  });
+  const { data } = await res.json();
+  return data.sessionID;
+}
+
+async function getProjects(sessionID) {
+  const res = await fetch(
+    `${BASE}/project?sessionID=${sessionID}&status=CUR&fields=name,status,percentComplete&$$LIMIT=50`
+  );
+  const { data } = await res.json();
+  return data;
+}
+
+async function createTask(sessionID, projectID, taskName) {
+  const res = await fetch(`${BASE}/task?sessionID=${sessionID}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: taskName, projectID })
+  });
+  return (await res.json()).data;
+}
+----
+
+---
+
+=== Python (requests)
+
+[source,python]
+----
+import requests
+
+BASE = "https://acme.workfront.com/attask/api/v21.0"
+
+def login(username, password):
+    r = requests.post(f"{BASE}/login", params={"username": username, "password": password})
+    return r.json()["data"]["sessionID"]
+
+def search_projects(session_id, **filters):
+    params = {"sessionID": session_id, "fields": "*", **filters}
+    r = requests.get(f"{BASE}/project", params=params)
+    return r.json()["data"]
+
+def update_task(session_id, task_id, **fields):
+    params = {"sessionID": session_id}
+    r = requests.put(f"{BASE}/task/{task_id}", params=params, json=fields)
+    return r.json()["data"]
+
+# Usage
+session = login("admin@acme.com", "secret")
+projects = search_projects(session, status="CUR")
+for p in projects:
+    print(p["name"], p.get("percentComplete"))
+----
+
+// ============================================================
+== Additional Resources
+// ============================================================
+
+[cols="2,4", options="header"]
+|===
+| Resource | URL
+| Developer Home | https://developer.adobe.com/workfront-apis/
+| API Explorer | https://developersupport.workfront.com/page-api-explorer.html
+| Experience League Docs | https://experienceleague.adobe.com/en/docs/workfront/using/adobe-workfront-api/workfront-api
+| Planning API | https://developer.adobe.com/wf-planning/
+| Approvals API | https://developer.adobe.com/workfront-apis/api/approvals/
+| Python SDK | https://python-workfront.readthedocs.io/
+|===

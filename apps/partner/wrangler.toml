@@ -1,0 +1,11 @@
+# Cloudflare Pages Configuration for Partner Portal
+name = "kuddl-partner-web"
+pages_build_output_dir = "dist"
+compatibility_date = "2024-09-23"
+
+# Environment variables for production
+[vars]
+VITE_API_BASE_URL = "https://api.kuddlkin.co"
+VITE_API_URL = "https://api.kuddlkin.co"
+VITE_R2_PUBLIC_URL = "https://prodassets.kuddl.co"
+VITE_ENVIRONMENT = "production"

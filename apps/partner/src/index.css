@@ -1,0 +1,439 @@
+
+@font-face {
+  font-family: 'adineue PRO';
+  src: url('./assets/fonts/adineue-PRO.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Mobile app styles */
+@import './styles/mobile.css';
+
+/* Time picker custom styles - Override browser default blue with teal */
+input[type="time"] {
+  position: relative;
+  z-index: 1;
+}
+
+input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.5) sepia(1) saturate(5) hue-rotate(175deg);
+  cursor: pointer;
+}
+
+/* Override all time picker field selections with teal */
+input[type="time"]::-webkit-datetime-edit-hour-field:focus,
+input[type="time"]::-webkit-datetime-edit-minute-field:focus,
+input[type="time"]::-webkit-datetime-edit-ampm-field:focus,
+input[type="time"]::-webkit-datetime-edit-hour-field:hover,
+input[type="time"]::-webkit-datetime-edit-minute-field:hover,
+input[type="time"]::-webkit-datetime-edit-ampm-field:hover,
+input[type="time"]::-webkit-datetime-edit-hour-field:active,
+input[type="time"]::-webkit-datetime-edit-minute-field:active,
+input[type="time"]::-webkit-datetime-edit-ampm-field:active {
+  background-color: #578f82 !important;
+  color: white !important;
+  border-radius: 4px !important;
+  outline: none !important;
+}
+
+/* Time picker dropdown styling */
+input[type="time"]::-webkit-datetime-edit {
+  padding: 0;
+}
+
+input[type="time"]::-webkit-inner-spin-button {
+  display: none;
+}
+
+/* Firefox time picker styling */
+input[type="time"]::-moz-focus-inner {
+  border: 0;
+}
+
+/* General time input focus styling */
+input[type="time"]:focus {
+  outline: none !important;
+  border-color: #578f82 !important;
+  box-shadow: 0 0 0 3px rgba(87, 143, 130, 0.1) !important;
+}
+
+/* Fix for dropdown positioning */
+input[type="time"] {
+  overflow: visible !important;
+}
+
+/* Custom dropdown styling for time picker */
+input[type="time"]::-webkit-datetime-edit-fields-wrapper {
+  background: transparent;
+}
+
+/* Ensure proper stacking context */
+.relative {
+  position: relative;
+  z-index: auto;
+}
+
+/* FullCalendar custom styles */
+.fc {
+  font-family: inherit;
+}
+
+.fc-theme-standard .fc-scrollgrid {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+}
+
+.fc-theme-standard td, .fc-theme-standard th {
+  border-color: #e5e7eb;
+}
+
+.fc-col-header-cell {
+  background-color: #f9fafb;
+  font-weight: 600;
+  color: #374151;
+}
+
+.fc-timegrid-slot {
+  height: 2.5rem;
+}
+
+.fc-event {
+  border-radius: 0.375rem;
+  border: none !important;
+  font-weight: 500;
+  font-size: 0.75rem;
+}
+
+.fc-button-primary {
+  background-color: #578f82 !important;
+  border-color: #578f82 !important;
+}
+
+.fc-button-primary:hover {
+  background-color: #4a7c70 !important;
+  border-color: #4a7c70 !important;
+}
+
+.fc-today-button {
+  background-color: #6b7280 !important;
+  border-color: #6b7280 !important;
+}
+
+/* FullCalendar Mobile Responsiveness */
+@media (max-width: 640px) {
+  .fc .fc-toolbar.fc-header-toolbar {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 0.25rem !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  .fc .fc-toolbar-chunk {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.25rem !important;
+  }
+  
+  .fc .fc-toolbar-title {
+    font-size: 0.8rem !important;
+    text-align: center;
+    white-space: nowrap;
+    margin: 0 !important;
+  }
+
+  .fc .fc-button {
+    padding: 0.15rem 0.3rem !important;
+    font-size: 0.65rem !important;
+    height: 24px !important;
+    line-height: 1 !important;
+  }
+
+  .fc .fc-button .fc-icon {
+    font-size: 0.8rem !important;
+  }
+  
+  .fc .fc-button-group {
+    display: flex !important;
+  }
+
+  .fc {
+    font-size: 0.75rem;
+  }
+  
+  .fc-col-header-cell-cushion, 
+  .fc-daygrid-day-number {
+    font-size: 0.7rem;
+    padding: 2px 4px !important;
+  }
+
+  .fc .fc-view-harness {
+    overflow-x: auto;
+  }
+  
+  .fc .fc-scrollgrid-sync-table, 
+  .fc .fc-timegrid-body, 
+  .fc .fc-daygrid-body {
+    min-width: 350px; /* Reduces the minimum readable width to fit better */
+  }
+}
+
+* {
+  font-family: 'adineue PRO', sans-serif;
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 25 45% 61%; /* Brand orange #cf956d */
+    --primary-foreground: 210 40% 98%;
+    --secondary: 174 25% 51%; /* Brand green #578f82 */
+    --secondary-foreground: 222.2 84% 4.9%;
+    --muted: 210 40% 98%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 39 100% 97%; /* Brand cream #fffaf3 */
+    --accent-foreground: 222.2 84% 4.9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 25 45% 61%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 25 45% 61%;
+    --primary-foreground: 222.2 84% 4.9%;
+    --secondary: 174 25% 51%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 25 45% 61%;
+  }
+}
+
+@layer base {
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'adineue PRO', sans-serif;
+    line-height: 1.5;
+    font-weight: 400;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-text-size-adjust: 100%;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom animations */
+@keyframes float {
+  0%, 100% { 
+    transform: translateY(0px); 
+  }
+  50% { 
+    transform: translateY(-20px); 
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes gradient {
+  0%, 100% { 
+    background-position: 0% 50%; 
+  }
+  50% { 
+    background-position: 100% 50%; 
+  }
+}
+
+@keyframes pulse-slow {
+  0%, 100% { 
+    transform: scale(1); 
+  }
+  50% { 
+    transform: scale(1.05); 
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 1s ease-out forwards;
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 2s ease-in-out infinite;
+}
+
+.animate-slide-in-up {
+  animation: slideInUp 0.8s ease-out forwards;
+}
+
+.animate-fade-in-down {
+  animation: fadeInDown 0.8s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.6s ease-out forwards;
+}
+
+.hover-lift {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+.pulse-slow {
+  animation: pulse-slow 2s ease-in-out infinite;
+}
+
+.gradient-animate {
+  background-size: 200% 200%;
+  animation: gradient 8s ease infinite;
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.delay-1000 {
+  animation-delay: 1s;
+}
+
+.delay-2000 {
+  animation-delay: 2s;
+}
+
+.animate-fade-in {
+  animation: fadeInUp 0.6s ease-out forwards;
+}
+
+/* Advanced parallax and scroll effects */
+.parallax-bg {
+  background-attachment: fixed;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(50px);
+  transition: all 0.8s ease-out;
+}
+
+.scroll-reveal.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Enhanced hover effects */
+.hover-glow:hover {
+  box-shadow: 0 0 30px rgba(87, 143, 130, 0.3);
+  transform: translateY(-2px);
+}
+
+.hover-rotate:hover {
+  transform: rotate(5deg) scale(1.05);
+}
+
+/* Smooth scrolling for anchor links */
+a[href^="#"] {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #578f82;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4a7c70;
+}

@@ -1,0 +1,15 @@
+{
+  "name": "@kuddlkin/kuddl-kin",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "peerDependencies": {
+    "lucide-react": "*",
+    "react": "*"
+  }
+}

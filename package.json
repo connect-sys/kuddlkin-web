@@ -1,0 +1,22 @@
+{
+  "name": "kuddlkin-web",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "dev:customer": "turbo run dev --filter=@kuddlkin/customer",
+    "dev:partner": "turbo run dev --filter=@kuddlkin/partner",
+    "dev:admin": "turbo run dev --filter=@kuddlkin/admin"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.4",
+    "typescript": "^5.7.3"
+  },
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=20"
+  }
+}

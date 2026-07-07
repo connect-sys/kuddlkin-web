@@ -1,0 +1,15 @@
+{
+  "name": "@kuddlkin/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "axios": "^1.13.3",
+    "@kuddlkin/types": "workspace:*"
+  }
+}
