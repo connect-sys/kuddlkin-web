@@ -36,8 +36,9 @@ module.exports = {
     {
       name: "kuddl-customer",
       cwd: "/var/www/kuddlkin/apps/customer",
-      // pnpm-workspace symlinks the next binary here after `pnpm install`.
-      script: "node_modules/.bin/next",
+      // Point at Next's real JS entry — node_modules/.bin/next is a shell wrapper,
+      // which `interpreter: node` cannot parse (SyntaxError).
+      script: "node_modules/next/dist/bin/next",
       args: "start -p 3000",
       interpreter: "node",
       exec_mode: "fork",
