@@ -1,54 +1,199 @@
-import {
-  createApiClient,
-  getServices as sharedGetServices,
-  getServiceById as sharedGetServiceById,
-  getCategories as sharedGetCategories,
-  getCamps as sharedGetCamps,
-  getPublicStats as sharedGetPublicStats,
-  campToService,
-  isCampLive,
-  type ServiceFilters,
-} from "@kuddlkin/api-client";
+import axios from "axios";
 import type {
   AuthResponse,
-  Category,
   Camp,
-  Child,
-  CustomerBooking,
+  Category,
   PublicStats,
   Service,
-} from "@kuddlkin/types";
+} from "./types";
 
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.kuddlkin.co";
 
 export const TOKEN_KEY = "customer_token";
 
-export const apiClient = createApiClient({
+export const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  tokenKey: TOKEN_KEY,
+  timeout: 15000,
+  headers: { "Content-Type": "application/json" },
+});
+
+// Attach the customer JWT (browser only).
+apiClient.interceptors.request.use((config) => {
+  if (typeof window !== "undefined") {
+    const token = window.localStorage.getItem(TOKEN_KEY);
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 /* -------------------------------------------------------------------------- */
-/*  Public data — delegates to @kuddlkin/api-client (shared with partner/admin) */
+/*  Services                                                                   */
 /* -------------------------------------------------------------------------- */
 
-export type { ServiceFilters };
-export { campToService, isCampLive };
+export interface ServiceFilters {
+  category?: string; // category_id
+  module?: string; // ADVENTURE | BLOOM | CARE | DISCOVER
+  pincode?: string;
+  page?: number;
+  limit?: number;
+}
 
-export const getServices = (filters?: ServiceFilters): Promise<Service[]> =>
-  sharedGetServices(apiClient, filters);
+export async function getServices(
+  filters: ServiceFilters = {}
+): Promise<Service[]> {
+  const params = new URLSearchParams();
+  if (filters.category) params.append("category", filters.category);
+  if (filters.module) params.append("module", filters.module);
+  if (filters.pincode) params.append("pincode", filters.pincode);
+  params.append("page", String(filters.page ?? 1));
+  params.append("limit", String(filters.limit ?? 24));
 
-export const getServiceById = (id: string): Promise<Service | null> =>
-  sharedGetServiceById(apiClient, id);
+  try {
+    const { data } = await apiClient.get(
+      `/api/public/services-all?${params.toString()}`
+    );
+    let list: Service[] = Array.isArray(data?.data) ? data.data : [];
+    // The backend currently ignores the `module` param, so filter client-side
+    // on category_module to keep the module tabs meaningful.
+    if (filters.module) {
+      const m = filters.module.toUpperCase();
+      list = list.filter(
+        (s) => (s.category_module ?? s.categoryModule)?.toUpperCase() === m
+      );
+    }
+    return list;
+  } catch (err) {
+    console.error("getServices failed", err);
+    return [];
+  }
+}
 
-export const getCategories = (): Promise<Category[]> =>
-  sharedGetCategories(apiClient);
+export async function getServiceById(id: string): Promise<Service | null> {
+  try {
+    if (id.startsWith("camp_")) {
+      const { data } = await apiClient.get(`/api/camps/${id}`);
+      const c: Camp = data.camp;
+      return campToService(c);
+    }
+    const { data } = await apiClient.get(`/api/public/services/${id}`);
+    if (data?.success && data?.data) return data.data as Service;
+  } catch {
+    /* fall through to list lookup */
+  }
 
-export const getCamps = (): Promise<Camp[]> => sharedGetCamps(apiClient);
+  // The detail endpoint gates on verification; fall back to the open list
+  // endpoint (same data source the catalog uses) and match by id.
+  try {
+    const all = await getServices({ limit: 200 });
+    return all.find((s) => s.id === id) ?? null;
+  } catch (err) {
+    console.error("getServiceById fallback failed", err);
+    return null;
+  }
+}
 
-export const getPublicStats = (): Promise<PublicStats> =>
-  sharedGetPublicStats(apiClient);
+export function campToService(c: Camp): Service {
+  return {
+    id: c.id,
+    name: c.title || c.name || "Camp",
+    description: c.description,
+    category: "cat_discover",
+    categoryName: c.camp_type?.replace(/_/g, " ") || "Camp",
+    categoryModule: "DISCOVER",
+    price: c.price,
+    price_type: "camp",
+    priceType: "camp",
+    duration_days: c.duration_days,
+    start_date: c.start_date,
+    end_date: c.end_date,
+    schedule_time: c.schedule_time,
+    schedule_start_time: c.schedule_start_time,
+    schedule_end_time: c.schedule_end_time,
+    schedule_days: c.schedule_days,
+    age_group_min: c.age_min,
+    age_group_max: c.age_max,
+    max_children: c.max_members,
+    city: c.city,
+    item_type: "camp",
+    provider_id: c.provider_id,
+    features: c.features || [],
+    images: c.image_urls || [],
+    image_urls: c.image_urls || [],
+    primary_image_url: c.primary_image_url,
+    provider: {
+      id: undefined,
+      businessName: c.business_name || c.provider_name || "Camp Provider",
+      name: c.provider_name || "Provider",
+      average_rating: c.average_rating || 4.6,
+      city: c.city,
+    },
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Categories                                                                 */
+/* -------------------------------------------------------------------------- */
+
+export async function getCategories(): Promise<Category[]> {
+  try {
+    const { data } = await apiClient.get("/api/categories");
+    return (data?.data ?? []) as Category[];
+  } catch (err) {
+    console.error("getCategories failed", err);
+    return [];
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Camps                                                                      */
+/* -------------------------------------------------------------------------- */
+
+/** A camp is shown only if it's active and hasn't already ended. */
+export function isCampLive(c: Camp): boolean {
+  if (c.status && c.status !== "active") return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (c.end_date) {
+    const end = new Date(c.end_date);
+    if (!Number.isNaN(end.getTime()) && end < today) return false;
+  }
+  return true;
+}
+
+export async function getCamps(): Promise<Camp[]> {
+  try {
+    const { data } = await apiClient.get("/api/camps");
+    const list = data?.camps ?? data?.data ?? [];
+    const camps: Camp[] = Array.isArray(list) ? list : [];
+    return camps.filter(isCampLive);
+  } catch (err) {
+    console.error("getCamps failed", err);
+    return [];
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Public stats                                                               */
+/* -------------------------------------------------------------------------- */
+
+export async function getPublicStats(): Promise<PublicStats> {
+  try {
+    const { data } = await apiClient.get("/api/public/stats");
+    // API shape: { stats: { activeProviders: { value }, totalServices: {...}, ... } }
+    const s = data?.stats ?? {};
+    const val = (k: string) => Number(s?.[k]?.value ?? 0);
+    return {
+      total_providers: val("activeProviders"),
+      total_services: val("totalServices") + val("activeCamps"),
+      total_bookings: val("totalBookings"),
+      total_camps: val("activeCamps"),
+    };
+  } catch (err) {
+    console.error("getPublicStats failed", err);
+    return {};
+  }
+}
 
 /* -------------------------------------------------------------------------- */
 /*  Auth (phone OTP)                                                           */
@@ -83,6 +228,10 @@ export async function googleAuth(payload: {
   const { data } = await apiClient.post("/api/auth/google", payload);
   return data;
 }
+
+/* -------------------------------------------------------------------------- */
+/*  Contact                                                                    */
+/* -------------------------------------------------------------------------- */
 
 /* -------------------------------------------------------------------------- */
 /*  Bookings                                                                   */
@@ -157,6 +306,42 @@ export async function bookCamp(
 /* -------------------------------------------------------------------------- */
 /*  Customer area (auth required)                                              */
 /* -------------------------------------------------------------------------- */
+
+export interface CustomerBooking {
+  id: string;
+  service_id?: string;
+  service_name?: string;
+  provider_name?: string;
+  business_name?: string;
+  child_name?: string;
+  selected_date?: string;
+  start_time?: string;
+  end_time?: string;
+  total_amount?: number;
+  status?: string;
+  payment_status?: string;
+  created_at?: string;
+  primary_image_url?: string;
+  invoice_id?: string;
+  invoice_qr_url?: string;
+  is_camp?: boolean;
+  [key: string]: unknown;
+}
+
+export interface Child {
+  id: string;
+  name: string;
+  nickname?: string;
+  age?: number | string;
+  gender?: string;
+  date_of_birth?: string;
+  allergies?: string;
+  special_needs?: string;
+  notes?: string;
+  profile_picture?: string;
+  profilePicture?: string;
+  [key: string]: unknown;
+}
 
 /** Camp bookings, normalised to the shared CustomerBooking shape. */
 async function getCampBookings(): Promise<CustomerBooking[]> {

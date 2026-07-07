@@ -1,20 +1,19 @@
 {
-  "name": "@kuddlkin/partner",
+  "name": "partner-portal",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite --port 5173",
     "build": "vite build",
+    "build:typecheck": "tsc && vite build",
     "preview": "vite preview --port 5173",
-    "typecheck": "tsc --noEmit",
     "deploy": "npx wrangler pages deploy dist",
     "deploy:dev": "./deploy-dev.sh",
     "deploy:prod": "./deploy-prod.sh",
     "deploy:both": "./deploy-both.sh"
   },
   "dependencies": {
-    "@kuddlkin/types": "workspace:*",
     "@fullcalendar/core": "^6.1.20",
     "@fullcalendar/daygrid": "^6.1.20",
     "@fullcalendar/interaction": "^6.1.20",
@@ -46,7 +45,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.19.19",
-    "@types/react": "18.3.25",
+    "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",
     "@vitejs/plugin-react": "^4.1.1",
     "autoprefixer": "^10.4.16",

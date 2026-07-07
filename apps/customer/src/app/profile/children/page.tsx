@@ -5,8 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import toast from "react-hot-toast";
 import { Plus, X, Loader2, Camera } from "lucide-react";
-import { getCustomerChildren, addCustomerChild } from "@/lib/api";
-import type { Child } from "@/lib/types";
+import { getCustomerChildren, addCustomerChild, type Child } from "@/lib/api";
 import { resolveImage } from "@/lib/images";
 import { initials } from "@/lib/utils";
 

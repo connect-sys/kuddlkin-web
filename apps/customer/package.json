@@ -1,19 +1,14 @@
 {
-  "name": "@kuddlkin/customer",
+  "name": "kuddl-customer-web-new",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "typecheck": "tsc --noEmit"
+    "lint": "eslint"
   },
   "dependencies": {
-    "@kuddlkin/api-client": "workspace:*",
-    "@kuddlkin/kuddl-kin": "workspace:*",
-    "@kuddlkin/types": "workspace:*",
-    "@kuddlkin/utils": "workspace:*",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
     "@tanstack/react-query": "^5.101.1",

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Calendar, Clock, QrCode, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
-import type { CustomerBooking } from "@/lib/types";
+import type { CustomerBooking } from "@/lib/api";
 import { resolveImage } from "@/lib/images";
 import { formatPrice } from "@/lib/utils";
 

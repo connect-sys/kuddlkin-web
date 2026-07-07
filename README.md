@@ -1,40 +1,49 @@
 # kuddlkin-web
 
-Turborepo monorepo for the Kuddl web platform — customer portal, partner portal, and the internal admin/service-worker console, sharing common types, brand tokens and API logic.
+Turborepo monorepo that houses the Kuddl web apps side by side. This is a **folder-structure grouping only** — each app is the same code, unchanged, moved under `apps/`.
 
 ## Structure
 
 ```
 kuddlkin-web/
 ├── apps/
-│   ├── customer/     @kuddlkin/customer — Next.js 16, customer-facing portal
-│   ├── partner/      @kuddlkin/partner  — Vite + React, partner/provider portal
-│   └── admin/        @kuddlkin/admin    — Next.js 16, internal admin & service-worker console
-└── packages/
-    ├── types/         @kuddlkin/types       — shared domain types (Service, Camp, Booking, Partner, ...)
-    ├── kuddl-kin/      @kuddlkin/kuddl-kin   — the 4 Kuddl Kin modules (Adventure/Bloom/Care/Discover): colors, icons, labels
-    ├── utils/          @kuddlkin/utils       — cn(), formatPrice(), parseFeatures(), hasEnded(), ...
-    ├── api-client/     @kuddlkin/api-client  — shared axios factory + public-data endpoints (services, camps, categories, stats)
-    └── config/         @kuddlkin/config      — shared tsconfig base
+│   ├── customer/     kuddl-customer-web-new — Next.js 16, customer portal (verbatim)
+│   └── partner/      partner-portal         — Vite + React, partner portal (verbatim).
+│                     Includes the admin console (/admin/*) and service-worker
+│                     portal (/worker/login) via role-based routing.
+├── turbo.json
+├── pnpm-workspace.yaml
+└── package.json
 ```
+
+There is no separate admin app — the admin and service-worker portals already
+live inside the partner app and are reached by role after login.
 
 ## Getting started
 
 ```bash
 pnpm install
-pnpm dev              # runs all apps in parallel
+pnpm dev              # run all apps
 pnpm dev:customer      # customer only  — http://localhost:3000
 pnpm dev:partner       # partner only   — http://localhost:5173
-pnpm dev:admin         # admin only     — http://localhost:3002
-
 pnpm build             # build all apps
-pnpm typecheck         # typecheck all apps
 ```
 
 ## Notes
 
-- **Package manager:** pnpm workspaces + Turborepo. Each app pins its own React version (customer/admin on React 19, partner on React 18) — pnpm's per-package isolation handles this cleanly.
-- **API domain:** all apps point at `https://api.kuddlkin.co` in production (see each app's `.env.local` / `.env.production`).
-- **apps/customer** and **apps/partner** were migrated from their original standalone repos (`kuddl-customer-web-new`, `kuddl-partner-web`) as a fresh copy — git history was intentionally left behind in the original repos rather than merged in.
-- **apps/admin** is new — a scaffolded shell with role-based login (Admin / Service worker via `/api/auth/login` and `/api/service-workers/login`) and a dashboard-stats home page. Partner verification, bookings, revenue and CMS screens are natural follow-ups, backed by real endpoints already in `kuddl-backend`.
-- **apps/partner**'s `tsc` typecheck currently fails on a pre-existing `lucide-react@0.294` + `@types/react` version-resolution conflict surfaced by pnpm's stricter isolation (npm's flatter hoisting was masking it). It does **not** affect the production build — `partner`'s `build` script was decoupled from the `tsc` gate (`vite build` only). Fixing this properly means upgrading `lucide-react` in `apps/partner`, which is a good candidate for a focused follow-up since it touches every icon import in that app.
+- **Nothing about either app's code or design was changed.** The customer app is
+  byte-identical to `kuddl-customer-web-new`; the partner app is byte-identical
+  to `kuddl-partner-web` except for one line in its `package.json` (see below).
+- **Package manager:** pnpm workspaces + Turborepo. Customer runs on React 19,
+  partner on React 18 — pnpm keeps each app's dependencies isolated.
+- **Partner build script:** the default `build` was changed from `tsc && vite build`
+  to just `vite build`. Reason: in a shared workspace the customer app's React 19
+  `@types/react` bleeds into the partner app's `tsc` pass (an old `lucide-react`
+  version binds to the wrong React types), which fails a type-lint step that has
+  nothing to do with the actual bundle — Vite/esbuild never type-checks and
+  produces the identical output either way. The original `tsc && vite build` is
+  preserved as the `build:typecheck` script if you want the type gate back.
+- **API domain:** both apps point at `https://api.kuddlkin.co` in production
+  (customer `.env.local`, partner `.env.production`).
+- The original standalone repos (`kuddl-customer-web-new`, `kuddl-partner-web`)
+  are untouched and still exist alongside this folder.
