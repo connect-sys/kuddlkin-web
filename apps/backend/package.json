@@ -1,0 +1,42 @@
+{
+  "name": "kuddl-backend",
+  "version": "1.0.0",
+  "description": "Kuddlkin Platform Backend - Node.js + PostgreSQL",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "build": "echo 'no build step'",
+    "migrate:d1-to-pg": "node scripts/migrate-d1-to-pg.mjs",
+    "test": "vitest",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix"
+  },
+  "dependencies": {
+    "@google-cloud/storage": "^7.14.0",
+    "@google-cloud/vision": "^4.0.0",
+    "@tsndr/cloudflare-worker-jwt": "^2.4.1",
+    "@whatwg-node/server": "^0.9.60",
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.7",
+    "itty-router": "^4.0.13",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "better-sqlite3": "^11.8.1",
+    "eslint": "^8.53.0",
+    "prettier": "^3.0.3",
+    "vitest": "^0.34.6"
+  },
+  "keywords": [
+    "kuddlkin",
+    "platform",
+    "node",
+    "postgres",
+    "gcs"
+  ],
+  "author": "Kuddl Team",
+  "license": "MIT"
+}

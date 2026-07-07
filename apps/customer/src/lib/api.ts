@@ -7,8 +7,26 @@ import type {
   Service,
 } from "./types";
 
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.kuddlkin.co";
+// Resolve the API base URL by environment:
+//   • running on localhost (browser) or `next dev`  → local backend on :5050
+//   • production                                    → api.kuddlkin.co
+// An explicit NEXT_PUBLIC_API_BASE_URL (from the root .env) always wins.
+function resolveApiBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_API_BASE_URL) return process.env.NEXT_PUBLIC_API_BASE_URL;
+
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0" || host === "::1") {
+      return "http://localhost:5050";
+    }
+  }
+  // Server-side / SSR: fall back on NODE_ENV.
+  return process.env.NODE_ENV === "production"
+    ? "https://api.kuddlkin.co"
+    : "http://localhost:5050";
+}
+
+export const API_BASE_URL = resolveApiBaseUrl();
 
 export const TOKEN_KEY = "customer_token";
 

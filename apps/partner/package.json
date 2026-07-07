@@ -7,11 +7,7 @@
     "dev": "vite --port 5173",
     "build": "vite build",
     "build:typecheck": "tsc && vite build",
-    "preview": "vite preview --port 5173",
-    "deploy": "npx wrangler pages deploy dist",
-    "deploy:dev": "./deploy-dev.sh",
-    "deploy:prod": "./deploy-prod.sh",
-    "deploy:both": "./deploy-both.sh"
+    "preview": "vite preview --port 5173"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.20",
