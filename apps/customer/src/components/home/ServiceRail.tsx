@@ -37,7 +37,17 @@ export function ServiceRail({
 }: ServiceRailProps) {
   const scroller = useRef<HTMLDivElement>(null);
   const [paused, setPaused] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const { data, isLoading } = useQuery({ queryKey, queryFn: fetcher });
+
+  // The "moving slider" only auto-advances on mobile; desktop stays static.
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1023px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
 
   const scroll = (dir: 1 | -1) => {
     scroller.current?.scrollBy({ left: dir * 320, behavior: "smooth" });
@@ -47,7 +57,7 @@ export function ServiceRail({
 
   // Moving-slider behaviour: gently advance, loop back at the end, pause on interaction.
   useEffect(() => {
-    if (!autoScroll || paused || items.length < 2) return;
+    if (!autoScroll || !isMobile || paused || items.length < 2) return;
     const el = scroller.current;
     if (!el) return;
     const id = setInterval(() => {
@@ -56,7 +66,7 @@ export function ServiceRail({
       else el.scrollBy({ left: el.clientWidth * 0.85, behavior: "smooth" });
     }, 3200);
     return () => clearInterval(id);
-  }, [autoScroll, paused, items.length]);
+  }, [autoScroll, isMobile, paused, items.length]);
 
   if (!isLoading && hideWhenEmpty && items.length === 0) return null;
 

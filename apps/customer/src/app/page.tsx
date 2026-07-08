@@ -1,5 +1,6 @@
 "use client";
 
+import { Hero } from "@/components/home/Hero";
 import { SearchLocationBar } from "@/components/home/SearchLocationBar";
 import { CategoryStrip } from "@/components/home/CategoryStrip";
 import { ServiceRail } from "@/components/home/ServiceRail";
@@ -12,9 +13,16 @@ import { getServices, getCamps, campToService } from "@/lib/api";
 export default function HomePage() {
   return (
     <>
-      {/* Header (fixed, in layout) → search + location → categories → moving rails */}
-      <SearchLocationBar />
-      <CategoryStrip />
+      {/* Mobile: search + location, then categories strip */}
+      <div className="lg:hidden">
+        <SearchLocationBar />
+        <CategoryStrip />
+      </div>
+
+      {/* Desktop: the original hero (unchanged) */}
+      <div className="hidden lg:block">
+        <Hero />
+      </div>
 
       <ServiceRail
         title="Trending right now"
@@ -24,6 +32,8 @@ export default function HomePage() {
         viewAllHref="/services"
         autoScroll
       />
+
+      <StatsStrip />
 
       <ServiceRail
         title="Camps & workshops"
@@ -38,7 +48,6 @@ export default function HomePage() {
         autoScroll
       />
 
-      <StatsStrip />
       <HowItWorks />
       <HappyMomentsGallery />
       <HappyMoments />
