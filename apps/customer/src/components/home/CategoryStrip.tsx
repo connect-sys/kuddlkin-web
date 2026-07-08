@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { Compass } from "lucide-react";
 import { getCategories } from "@/lib/api";
 import { MODULES, getModule } from "@/lib/modules";
+import { ModuleIcon } from "@/components/ui/ModuleIcon";
 
 /**
  * Horizontally-scrollable strip of categories, shown under the search bar.
@@ -33,6 +35,9 @@ export function CategoryStrip() {
         <div className="no-scrollbar flex gap-4 overflow-x-auto pb-1">
           {items.map((it) => {
             const mod = getModule(it.module) ?? getModule(it.name);
+            // Clean label: use the module label (Adventure/Bloom/Care/Discover)
+            // when the category maps to one, else the category's own name.
+            const label = mod?.label ?? it.name;
             return (
               <Link
                 key={it.id}
@@ -40,13 +45,20 @@ export function CategoryStrip() {
                 className="flex shrink-0 flex-col items-center gap-1.5"
               >
                 <span
-                  className="grid h-14 w-14 place-items-center rounded-2xl text-2xl transition-transform duration-150 hover:scale-105 sm:h-16 sm:w-16"
-                  style={{ background: mod?.soft ?? "#FFF4EC" }}
+                  className="grid h-14 w-14 place-items-center rounded-2xl transition-transform duration-150 hover:scale-105 sm:h-16 sm:w-16"
+                  style={{
+                    background: mod?.soft ?? "#FFF4EC",
+                    color: mod?.color ?? "#EF9855",
+                  }}
                 >
-                  {mod?.emoji ?? "🎨"}
+                  {mod ? (
+                    <ModuleIcon module={mod} className="h-7 w-7" />
+                  ) : (
+                    <Compass className="h-7 w-7" />
+                  )}
                 </span>
                 <span className="max-w-[4.5rem] truncate text-center text-xs font-bold text-kuddl-ink">
-                  {it.name}
+                  {label}
                 </span>
               </Link>
             );
