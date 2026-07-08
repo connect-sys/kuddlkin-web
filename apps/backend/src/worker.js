@@ -3501,8 +3501,8 @@ router.get('/api/pincodes', async (request, env) => {
   try {
     // Fetch all active pincodes from database
     const pincodes = await env.KUDDL_DB.prepare(`
-      SELECT pincode, city, area, state 
-      FROM pincodes 
+      SELECT pincode, city, area, state, latitude, longitude
+      FROM pincodes
       WHERE is_active = 1
       ORDER BY state, city, pincode
     `).all();

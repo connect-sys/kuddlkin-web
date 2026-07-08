@@ -7,6 +7,8 @@ import type { Service } from "@/lib/types";
 import { serviceImage } from "@/lib/images";
 import { formatPrice, priceLabel, cn } from "@/lib/utils";
 import { getModule } from "@/lib/modules";
+import { useLocation } from "@/lib/location";
+import { itemPincode, formatKm } from "@/lib/geo";
 
 export function ServiceCard({
   service,
@@ -22,6 +24,12 @@ export function ServiceCard({
     getModule(service.category_name);
   const rating = service.provider?.average_rating;
   const city = service.city || service.provider?.city;
+
+  // Distance from the parent's chosen location to this provider (if both known).
+  const { distanceKmTo } = useLocation();
+  const distanceKm = distanceKmTo(
+    itemPincode(service as unknown as Record<string, unknown>)
+  );
   const priceType = service.priceType || service.price_type;
   const ageMin = service.age_group_min;
   const ageMax = service.age_group_max;
@@ -68,6 +76,12 @@ export function ServiceCard({
               {Number(rating).toFixed(1)}
             </span>
           ) : null}
+          {distanceKm != null && (
+            <span className="absolute bottom-3 left-3 flex items-center gap-1 rounded-full bg-secondary-500/95 px-2.5 py-1 text-xs font-extrabold text-white shadow">
+              <MapPin className="h-3.5 w-3.5" />
+              {formatKm(distanceKm)}
+            </span>
+          )}
         </div>
 
         <div className="flex flex-1 flex-col p-4">

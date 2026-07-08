@@ -448,6 +448,26 @@ export async function addCustomerChild(
   return data;
 }
 
+export interface PincodeGeo {
+  pincode: string;
+  city?: string;
+  area?: string;
+  state?: string;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+}
+
+/** All serviceable pincodes, including lat/long for distance calculations. */
+export async function getPincodes(): Promise<PincodeGeo[]> {
+  try {
+    const { data } = await apiClient.get("/api/pincodes");
+    return (data?.pincodes ?? data?.data ?? []) as PincodeGeo[];
+  } catch (err) {
+    console.error("getPincodes failed", err);
+    return [];
+  }
+}
+
 export async function submitContact(payload: {
   name: string;
   email: string;
