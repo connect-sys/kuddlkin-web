@@ -14,12 +14,19 @@ export const corsHeaders = {
   'Expires': '0',
 };
 
-// Utility function to add CORS headers to responses
+// Utility function to add CORS headers.
+// Accepts EITHER a Response (sets headers on it, returns the Response) OR a plain
+// headers object (returns a new object with CORS merged in). The customer-profile
+// controllers use the plain-object form as `new Response(body, { headers: addCorsHeaders({...}) })`.
 export function addCorsHeaders(response) {
-  Object.entries(corsHeaders).forEach(([key, value]) => {
-    response.headers.set(key, value);
-  });
-  return response;
+  if (response && response.headers && typeof response.headers.set === 'function') {
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+      response.headers.set(key, value);
+    });
+    return response;
+  }
+  // Treat the argument as a plain headers dict (or undefined).
+  return { ...corsHeaders, ...(response || {}) };
 }
 
 // Handle CORS preflight requests
