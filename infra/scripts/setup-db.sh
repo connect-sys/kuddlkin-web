@@ -47,4 +47,8 @@ echo "▸ Applying SQLite-compat layer (sqlite_master view + uuid PK defaults)"
 PGPASSWORD="$PW" psql -h "${PGHOST:-localhost}" -p "${PGPORT:-5432}" -U "$USER" -d "$DB" \
   -f "$ROOT_DIR/apps/backend/scripts/pg-compat.sql"
 
+echo "▸ Ensuring customer-profile tables exist (customer_children, favorites, reviews…)"
+PGPASSWORD="$PW" psql -h "${PGHOST:-localhost}" -p "${PGPORT:-5432}" -U "$USER" -d "$DB" \
+  -f "$ROOT_DIR/apps/backend/src/database/customerProfileSchema.sql"
+
 echo "✅ setup-db.sh done. Verify:  psql -U $USER -d $DB -c '\\dt'"

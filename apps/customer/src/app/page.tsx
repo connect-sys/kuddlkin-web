@@ -1,6 +1,7 @@
 "use client";
 
-import { Hero } from "@/components/home/Hero";
+import { SearchLocationBar } from "@/components/home/SearchLocationBar";
+import { CategoryStrip } from "@/components/home/CategoryStrip";
 import { ServiceRail } from "@/components/home/ServiceRail";
 import { StatsStrip } from "@/components/home/StatsStrip";
 import { HowItWorks } from "@/components/home/HowItWorks";
@@ -11,7 +12,9 @@ import { getServices, getCamps, campToService } from "@/lib/api";
 export default function HomePage() {
   return (
     <>
-      <Hero />
+      {/* Header (fixed, in layout) → search + location → categories → moving rails */}
+      <SearchLocationBar />
+      <CategoryStrip />
 
       <ServiceRail
         title="Trending right now"
@@ -19,9 +22,8 @@ export default function HomePage() {
         queryKey={["services", "trending"]}
         fetcher={() => getServices({ limit: 12 })}
         viewAllHref="/services"
+        autoScroll
       />
-
-      <StatsStrip />
 
       <ServiceRail
         title="Camps & workshops"
@@ -33,8 +35,10 @@ export default function HomePage() {
         }}
         viewAllHref="/services?module=DISCOVER"
         tint="#FFFAF3"
+        autoScroll
       />
 
+      <StatsStrip />
       <HowItWorks />
       <HappyMomentsGallery />
       <HappyMoments />

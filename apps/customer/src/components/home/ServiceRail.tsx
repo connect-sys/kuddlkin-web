@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
@@ -21,6 +21,8 @@ interface ServiceRailProps {
   tint?: string;
   /** hide the whole section when the API returns nothing */
   hideWhenEmpty?: boolean;
+  /** auto-advance the rail like a moving slider (pauses on hover/touch) */
+  autoScroll?: boolean;
 }
 
 export function ServiceRail({
@@ -31,8 +33,10 @@ export function ServiceRail({
   viewAllHref = "/services",
   tint = "transparent",
   hideWhenEmpty = true,
+  autoScroll = false,
 }: ServiceRailProps) {
   const scroller = useRef<HTMLDivElement>(null);
+  const [paused, setPaused] = useState(false);
   const { data, isLoading } = useQuery({ queryKey, queryFn: fetcher });
 
   const scroll = (dir: 1 | -1) => {
@@ -40,6 +44,20 @@ export function ServiceRail({
   };
 
   const items = data ?? [];
+
+  // Moving-slider behaviour: gently advance, loop back at the end, pause on interaction.
+  useEffect(() => {
+    if (!autoScroll || paused || items.length < 2) return;
+    const el = scroller.current;
+    if (!el) return;
+    const id = setInterval(() => {
+      const max = el.scrollWidth - el.clientWidth;
+      if (el.scrollLeft >= max - 8) el.scrollTo({ left: 0, behavior: "smooth" });
+      else el.scrollBy({ left: el.clientWidth * 0.85, behavior: "smooth" });
+    }, 3200);
+    return () => clearInterval(id);
+  }, [autoScroll, paused, items.length]);
+
   if (!isLoading && hideWhenEmpty && items.length === 0) return null;
 
   return (
@@ -84,6 +102,9 @@ export function ServiceRail({
 
         <div
           ref={scroller}
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => setPaused(false)}
+          onTouchStart={() => setPaused(true)}
           className="no-scrollbar mt-7 flex snap-x snap-mandatory gap-5 overflow-x-auto pb-2"
         >
           {isLoading

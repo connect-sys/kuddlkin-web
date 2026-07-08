@@ -23,9 +23,22 @@ import {
   createBooking,
   bookCamp,
   addCustomerChild,
+  getCustomerChildren,
   type BookingChild,
   type CreateBookingResult,
 } from "@/lib/api";
+
+/** A child row in the form; childId is set when it came from the saved profile. */
+type FormChild = BookingChild & { childId?: string };
+
+/** Best-effort age from a stored date_of_birth. */
+function ageFromDob(dob?: string): number | undefined {
+  if (!dob) return undefined;
+  const d = new Date(dob);
+  if (Number.isNaN(d.getTime())) return undefined;
+  const age = Math.floor((Date.now() - d.getTime()) / (365.25 * 24 * 3600 * 1000));
+  return age >= 0 && age < 25 ? age : undefined;
+}
 import { serviceImage } from "@/lib/images";
 import { formatPrice, priceLabel, cn } from "@/lib/utils";
 import { getModule } from "@/lib/modules";
@@ -77,9 +90,49 @@ export function BookingFlow() {
   const [date, setDate] = useState("");
   const [time, setTime] = useState("10:00");
   const [qty, setQty] = useState(1);
-  const [children, setChildren] = useState<BookingChild[]>([
+  const [children, setChildren] = useState<FormChild[]>([
     { name: "", age: "" },
   ]);
+
+  // Saved children from the parent's profile — so returning parents don't retype.
+  const { data: savedChildren } = useQuery({
+    queryKey: ["customer-children"],
+    queryFn: getCustomerChildren,
+    enabled: isAuthenticated,
+  });
+  const [prefilled, setPrefilled] = useState(false);
+  useEffect(() => {
+    if (prefilled || !savedChildren?.length) return;
+    const first = savedChildren[0];
+    setChildren([
+      {
+        name: first.name || "",
+        age: String(first.age ?? ageFromDob(first.date_of_birth) ?? ""),
+        gender: (first.gender as string) || "",
+        childId: first.id,
+      },
+    ]);
+    setQty(1);
+    setPrefilled(true);
+  }, [savedChildren, prefilled]);
+
+  /** Fill row `i` from a saved child (used by the quick-pick chips). */
+  const useSavedChild = (i: number, id: string) => {
+    const sc = savedChildren?.find((c) => c.id === id);
+    if (!sc) return;
+    setChildren((prev) =>
+      prev.map((c, idx) =>
+        idx === i
+          ? {
+              name: sc.name || "",
+              age: String(sc.age ?? ageFromDob(sc.date_of_birth) ?? ""),
+              gender: (sc.gender as string) || "",
+              childId: sc.id,
+            }
+          : c
+      )
+    );
+  };
   const [parent, setParent] = useState({
     fullName: user?.name || user?.first_name || "",
     email: user?.email || "",
@@ -126,7 +179,12 @@ export function BookingFlow() {
 
   const updateChild = (i: number, key: keyof BookingChild, value: string) => {
     setChildren((prev) =>
-      prev.map((c, idx) => (idx === i ? { ...c, [key]: value } : c))
+      prev.map((c, idx) =>
+        idx === i
+          ? // Editing the name detaches it from the saved profile, so it gets saved.
+            { ...c, [key]: value, ...(key === "name" ? { childId: undefined } : {}) }
+          : c
+      )
     );
   };
 
@@ -190,15 +248,17 @@ export function BookingFlow() {
       }
 
       if (res.success) {
-        // Save these children to the parent's profile (best effort).
+        // Save only NEW children to the parent's profile (skip ones already saved).
         await Promise.allSettled(
-          children.map((c) =>
-            addCustomerChild({
-              name: c.name.trim(),
-              age: Number(c.age) || 0,
-              gender: (c.gender || "").toLowerCase(),
-            })
-          )
+          children
+            .filter((c) => !c.childId && c.name.trim())
+            .map((c) =>
+              addCustomerChild({
+                name: c.name.trim(),
+                age: Number(c.age) || 0,
+                gender: (c.gender || "").toLowerCase(),
+              })
+            )
         );
         qc.invalidateQueries({ queryKey: ["customer-bookings"] });
         qc.invalidateQueries({ queryKey: ["customer-children"] });
@@ -469,6 +529,55 @@ export function BookingFlow() {
                   <h2 className="text-xl font-black text-kuddl-ink">
                     Who’s coming along?
                   </h2>
+
+                  {savedChildren && savedChildren.length > 0 && (
+                    <div className="mt-4">
+                      <p className="text-xs font-bold text-sand-600">
+                        Your children — tap to add
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {savedChildren.map((sc) => {
+                          const used = children.some((c) => c.childId === sc.id);
+                          const scAge = sc.age ?? ageFromDob(sc.date_of_birth);
+                          return (
+                            <button
+                              key={sc.id}
+                              type="button"
+                              disabled={used}
+                              onClick={() => {
+                                const emptyIdx = children.findIndex(
+                                  (c) => !c.name.trim()
+                                );
+                                if (emptyIdx >= 0) {
+                                  useSavedChild(emptyIdx, sc.id);
+                                } else if (children.length < 10) {
+                                  setChildren((prev) => [
+                                    ...prev,
+                                    {
+                                      name: sc.name || "",
+                                      age: String(scAge ?? ""),
+                                      gender: (sc.gender as string) || "",
+                                      childId: sc.id,
+                                    },
+                                  ]);
+                                  setQty((q) => Math.min(10, q + 1));
+                                }
+                              }}
+                              className={cn(
+                                "inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-bold transition-colors",
+                                used
+                                  ? "border-sand-200 bg-sand-100 text-sand-400"
+                                  : "border-primary-200 bg-primary-50 text-primary-700 hover:bg-primary-100"
+                              )}
+                            >
+                              {sc.name}
+                              {scAge != null ? ` · ${scAge}` : ""}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="mt-5 space-y-3">
                     {children.map((c, i) => (
